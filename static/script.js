@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const navEl = document.querySelector(".v-nav");
   const galleryEl = document.getElementById("gallery");
   const searchInput = document.getElementById("searchInput");
   const searchWrapper = searchInput.closest(".search-wrapper");
@@ -8,6 +9,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const globalTagCloud = document.getElementById("globalTagCloud");
   const selectModeBtn = document.getElementById("selectModeBtn");
   const autocompleteBox = document.getElementById("autocompleteDropdown");
+  const boardSelectWrapper = document.getElementById("boardSelectWrapper");
+  const boardSelectTrigger = document.getElementById("boardSelectTrigger");
+  const boardSelectLabel = document.getElementById("boardSelectLabel");
+  const boardSelectOptions = document.getElementById("boardSelectOptions");
+
+  const mobileMenuToggle = document.getElementById("mobileMenuToggle");
+  const navFilters = document.getElementById("navFilters");
 
   const lightbox = document.getElementById("lightbox");
   const lightboxClose = document.getElementById("lightboxClose");
@@ -17,14 +25,22 @@ document.addEventListener("DOMContentLoaded", () => {
   let allImages = [];
   let currentRenderList = [];
 
-  const CHUNK_SIZE = 30;
-  const ITEMS_PER_PAGE = 150;
+  // --- REBUILT: Dynamic Memory Limits ---
+  function getItemsPerPage() {
+    return window.innerWidth <= 768 ? 50 : 150;
+  }
+  function getChunkSize() {
+    return window.innerWidth <= 768 ? 15 : 30;
+  }
 
   let currentPage = 1;
   let itemsRenderedThisPage = 0;
   let isRenderingChunk = false;
   let currentRenderId = 0;
   let currentCols = getColumnCount();
+
+  // NEW: Debounce Timer for Search
+  let searchDebounceTimer;
 
   const paginationContainer = document.createElement("div");
   paginationContainer.className = "pagination-container";
@@ -44,8 +60,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeTagsListEl = null;
   let activeSuggestionIndex = -1;
 
-  // --- NEW: Lightbox Tracker ---
   let currentLightboxIndex = -1;
+  let isShuffled = false;
+  let currentBoard = "All";
 
   const videoObserver = new IntersectionObserver(
     (entries) => {
@@ -62,9 +79,10 @@ document.addEventListener("DOMContentLoaded", () => {
     { threshold: 0.1 }
   );
 
+  // --- REBUILT: 1 Column on Mobile ---
   function getColumnCount() {
     const width = window.innerWidth;
-    if (width <= 500) return 1;
+    if (width <= 600) return 1;
     if (width <= 900) return 2;
     if (width <= 1400) return 3;
     return 4;
@@ -83,9 +101,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const threshold = document.body.offsetHeight - 800;
 
     if (scrollPosition >= threshold && !isRenderingChunk) {
-      const pageStartIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const pageStartIndex = (currentPage - 1) * getItemsPerPage();
       const totalItemsForThisPage = Math.min(
-        ITEMS_PER_PAGE,
+        getItemsPerPage(),
         currentRenderList.length - pageStartIndex
       );
 
@@ -95,19 +113,178 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  window.addEventListener("popstate", (e) => {
+    setBoardFromURL();
+    buildCustomDropdown();
+    applyFiltersAndRender();
+  });
+
+  mobileMenuToggle.addEventListener("click", () => {
+    navFilters.classList.toggle("is-open");
+    mobileMenuToggle.classList.toggle("active-mode");
+  });
+
   async function fetchGallery() {
     const response = await fetch("/api/gallery");
     allImages = await response.json();
-    updateGlobalTags();
+
+    const boards = [
+      "All",
+      ...new Set(allImages.map((img) => img.board)),
+    ].filter((b) => b);
+    const savedBoard = localStorage.getItem("tallo_board");
+
+    currentBoard =
+      savedBoard && boards.includes(savedBoard) ? savedBoard : "All";
+
+    setBoardFromURL();
+    buildCustomDropdown();
     currentPage = 1;
-    renderGallery(allImages);
+
+    if (currentBoard === "All") {
+      isShuffled = true;
+      shuffleBtn.classList.add("active-mode");
+      updateGlobalTags();
+      renderGallery(shuffleArray([...allImages]));
+    } else {
+      isShuffled = false;
+      shuffleBtn.classList.remove("active-mode");
+      updateGlobalTags();
+      let baseArray = allImages.filter((img) => img.board === currentBoard);
+      renderGallery(baseArray);
+    }
   }
+
+  function setBoardFromURL() {
+    const boards = [
+      "All",
+      ...new Set(allImages.map((img) => img.board)),
+    ].filter((b) => b);
+    const urlPath = window.location.pathname.replace(/^\/|\/$/g, "");
+
+    if (!urlPath) {
+      currentBoard = "All";
+      return;
+    }
+
+    const matchedBoard = boards.find(
+      (b) => b.toLowerCase() === urlPath.toLowerCase()
+    );
+    currentBoard = matchedBoard || "All";
+
+    if (!matchedBoard && urlPath !== "") {
+      window.history.replaceState(null, "", "/");
+    }
+  }
+
+  function shuffleArray(array) {
+    let currentIndex = array.length,
+      randomIndex;
+    while (currentIndex !== 0) {
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex],
+        array[currentIndex],
+      ];
+    }
+    return array;
+  }
+
+  function buildCustomDropdown() {
+    const boards = [
+      "All",
+      ...new Set(allImages.map((img) => img.board)),
+    ].filter((b) => b);
+    boardSelectOptions.innerHTML = "";
+
+    boardSelectLabel.textContent =
+      currentBoard === "All" ? "All Boards" : currentBoard;
+    boardSelectLabel.className =
+      currentBoard === "All" ? "all-boards-label" : "";
+
+    boards.forEach((b) => {
+      const opt = document.createElement("div");
+      opt.className = "custom-option";
+
+      if (b === "All") {
+        opt.textContent = "All Boards";
+        opt.classList.add("all-boards-opt");
+        if (currentBoard === "All") opt.classList.add("is-selected");
+      } else {
+        opt.textContent = b;
+        if (currentBoard === b) opt.classList.add("is-selected");
+      }
+
+      opt.addEventListener("click", (e) => {
+        e.stopPropagation();
+
+        boardSelectOptions
+          .querySelectorAll(".custom-option")
+          .forEach((el) => el.classList.remove("is-selected"));
+        opt.classList.add("is-selected");
+
+        boardSelectLabel.textContent = b === "All" ? "All Boards" : b;
+        boardSelectLabel.className = b === "All" ? "all-boards-label" : "";
+
+        boardSelectOptions.classList.remove("is-open");
+        boardSelectTrigger.classList.remove("is-open");
+
+        currentBoard = b;
+        localStorage.setItem("tallo_board", b);
+
+        const newUrl = b === "All" ? "/" : `/${b}`;
+        window.history.pushState({ board: b }, "", newUrl);
+
+        searchInput.value = "";
+        isShuffled = false;
+        shuffleBtn.classList.remove("active-mode");
+
+        if (window.innerWidth <= 768) {
+          navFilters.classList.remove("is-open");
+          mobileMenuToggle.classList.remove("active-mode");
+        }
+
+        updateGlobalTags();
+        applyFiltersAndRender();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+
+      boardSelectOptions.appendChild(opt);
+    });
+  }
+
+  boardSelectTrigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = boardSelectOptions.classList.contains("is-open");
+
+    if (isOpen) {
+      boardSelectOptions.classList.remove("is-open");
+      boardSelectTrigger.classList.remove("is-open");
+    } else {
+      hideAutocomplete();
+      boardSelectOptions.classList.add("is-open");
+      boardSelectTrigger.classList.add("is-open");
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!boardSelectWrapper.contains(e.target)) {
+      boardSelectOptions.classList.remove("is-open");
+      boardSelectTrigger.classList.remove("is-open");
+    }
+  });
 
   function updateGlobalTags() {
     let freq = {};
     let untaggedCount = 0;
 
-    allImages.forEach((img) => {
+    let activeBoardImages =
+      currentBoard === "All"
+        ? allImages
+        : allImages.filter((img) => img.board === currentBoard);
+
+    activeBoardImages.forEach((img) => {
       let hasRealTag = false;
 
       img.tags.forEach((t) => {
@@ -193,9 +370,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderNextChunk(renderId) {
     if (renderId !== currentRenderId) return;
 
-    const pageStartIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const pageStartIndex = (currentPage - 1) * getItemsPerPage();
     const totalItemsForThisPage = Math.min(
-      ITEMS_PER_PAGE,
+      getItemsPerPage(),
       currentRenderList.length - pageStartIndex
     );
 
@@ -203,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     isRenderingChunk = true;
     const targetCount = Math.min(
-      itemsRenderedThisPage + CHUNK_SIZE,
+      itemsRenderedThisPage + getChunkSize(),
       totalItemsForThisPage
     );
 
@@ -226,6 +403,16 @@ document.addEventListener("DOMContentLoaded", () => {
       if (selectedImages.has(imgData.filename)) {
         card.classList.add("is-selected");
       }
+
+      const expandBtn = document.createElement("button");
+      expandBtn.className = "card-expand-btn";
+      expandBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`;
+
+      expandBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openLightbox(globalIndex);
+      });
+      card.appendChild(expandBtn);
 
       card.addEventListener("click", (e) => {
         if (
@@ -263,8 +450,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           }
         } else {
-          // --- REBUILT: Pass index instead of image data to the Lightbox ---
-          openLightbox(globalIndex);
+          if (window.innerWidth <= 768) {
+            card.classList.toggle("show-mobile-overlay");
+          } else {
+            openLightbox(globalIndex);
+          }
         }
       });
 
@@ -381,7 +571,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderPaginationNumbers() {
     paginationContainer.innerHTML = "";
-    const totalPages = Math.ceil(currentRenderList.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(currentRenderList.length / getItemsPerPage());
 
     if (totalPages <= 1) return;
 
@@ -414,6 +604,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (isUrl) {
       tag.classList.add("url-tag");
+    }
+
+    if (tagText === "All Boards") {
+      tag.style.fontSize = "0.2rem";
     }
 
     tag.addEventListener("click", (e) => {
@@ -481,7 +675,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function applyBatchTag(tagText) {
     let promises = [];
-    allImages.forEach((img) => {
+
+    let activeBoardImages =
+      currentBoard === "All"
+        ? allImages
+        : allImages.filter((img) => img.board === currentBoard);
+
+    activeBoardImages.forEach((img) => {
       if (selectedImages.has(img.filename) && !img.tags.includes(tagText)) {
         img.tags.push(tagText);
         promises.push(saveTags(img));
@@ -515,9 +715,28 @@ document.addEventListener("DOMContentLoaded", () => {
     activeSuggestionIndex = -1;
 
     const rect = activeInputEl.getBoundingClientRect();
-    autocompleteBox.style.left = `${rect.left + window.scrollX}px`;
-    autocompleteBox.style.top = `${rect.bottom + window.scrollY + 4}px`;
     autocompleteBox.style.width = `${rect.width}px`;
+
+    // --- REBUILT: Position Autocomplete Based on Mobile Keyboard State ---
+    if (window.innerWidth <= 768) {
+      autocompleteBox.style.position = "fixed";
+      autocompleteBox.style.left = `${rect.left}px`;
+
+      if (navEl.classList.contains("keyboard-open")) {
+        // If nav is at top, drop DOWN
+        autocompleteBox.style.bottom = "auto";
+        autocompleteBox.style.top = `${rect.bottom + 4}px`;
+      } else {
+        // If nav is at bottom, drop UP
+        autocompleteBox.style.top = "auto";
+        autocompleteBox.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+      }
+    } else {
+      autocompleteBox.style.position = "absolute";
+      autocompleteBox.style.left = `${rect.left + window.scrollX}px`;
+      autocompleteBox.style.bottom = "auto";
+      autocompleteBox.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    }
 
     const q = query.toLowerCase();
     let suggestions = [];
@@ -628,17 +847,36 @@ document.addEventListener("DOMContentLoaded", () => {
     activeSuggestionIndex = -1;
   }
 
-  searchInput.addEventListener("focus", (e) =>
-    showAutocomplete(e.target, "search")
-  );
+  // --- REBUILT: Snap Nav to Top on Mobile Focus ---
+  searchInput.addEventListener("focus", (e) => {
+    boardSelectOptions.classList.remove("is-open");
+    boardSelectTrigger.classList.remove("is-open");
 
+    if (window.innerWidth <= 768) {
+      navEl.classList.add("keyboard-open");
+    }
+    showAutocomplete(e.target, "search");
+  });
+
+  // --- REBUILT: Debounce Search Input to stop Jitter ---
   searchInput.addEventListener("input", (e) => {
-    applyFiltersAndRender();
+    // 1. Immediately show autocomplete suggestions without delay
     filterAutocomplete(e.target.value);
+
+    // 2. Clear the old timer
+    clearTimeout(searchDebounceTimer);
+
+    // 3. Set a new timer to wait 300ms before doing the heavy grid re-render
+    searchDebounceTimer = setTimeout(() => {
+      applyFiltersAndRender();
+    }, 300);
   });
 
   searchInput.addEventListener("blur", () => {
-    setTimeout(hideAutocomplete, 200);
+    setTimeout(() => {
+      hideAutocomplete();
+      navEl.classList.remove("keyboard-open");
+    }, 200);
   });
 
   searchInput.addEventListener("keydown", (e) => {
@@ -655,9 +893,17 @@ document.addEventListener("DOMContentLoaded", () => {
     lastSelectedIndex = null;
     currentPage = 1;
 
+    isShuffled = false;
+    shuffleBtn.classList.remove("active-mode");
+
+    let baseArray =
+      currentBoard === "All"
+        ? allImages
+        : allImages.filter((img) => img.board === currentBoard);
+
     if (!query) {
       searchWrapper.classList.remove("is-active");
-      renderGallery(allImages);
+      renderGallery(baseArray);
       return;
     }
 
@@ -665,14 +911,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let filtered;
     if (query === "is:untagged") {
-      filtered = allImages.filter((img) => {
+      filtered = baseArray.filter((img) => {
         const hasTextTags = img.tags.some(
           (tag) => !tag.startsWith("http://") && !tag.startsWith("https://")
         );
         return !hasTextTags;
       });
     } else {
-      filtered = allImages.filter(
+      filtered = baseArray.filter(
         (img) =>
           img.tags.some((tag) => tag.toLowerCase().includes(query)) ||
           img.filename.toLowerCase().includes(query)
@@ -690,40 +936,61 @@ document.addEventListener("DOMContentLoaded", () => {
 
   resetLogo.addEventListener("click", () => {
     searchInput.value = "";
-    applyFiltersAndRender();
+
+    currentBoard = "All";
+    localStorage.setItem("tallo_board", "All");
+    window.history.pushState(null, "", "/");
+
+    boardSelectLabel.textContent = "All Boards";
+    boardSelectLabel.className = "all-boards-label";
+    boardSelectOptions.querySelectorAll(".custom-option").forEach((el) => {
+      el.classList.toggle(
+        "is-selected",
+        el.classList.contains("all-boards-opt")
+      );
+    });
+
+    isShuffled = true;
+    shuffleBtn.classList.add("active-mode");
+    currentPage = 1;
+    lastSelectedIndex = null;
+    searchWrapper.classList.remove("is-active");
+
+    navFilters.classList.remove("is-open");
+    mobileMenuToggle.classList.remove("active-mode");
+
+    updateGlobalTags();
+    renderGallery(shuffleArray([...allImages]));
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
-  function shuffleArray(array) {
-    let currentIndex = array.length,
-      randomIndex;
-    while (currentIndex !== 0) {
-      randomIndex = Math.floor(Math.random() * currentIndex);
-      currentIndex--;
-      [array[currentIndex], array[randomIndex]] = [
-        array[randomIndex],
-        array[currentIndex],
-      ];
-    }
-    return array;
-  }
-
   shuffleBtn.addEventListener("click", () => {
+    isShuffled = !isShuffled;
+    shuffleBtn.classList.toggle("active-mode", isShuffled);
+
+    if (!isShuffled) {
+      applyFiltersAndRender();
+      return;
+    }
+
     const query = searchInput.value.toLowerCase().trim();
     lastSelectedIndex = null;
     currentPage = 1;
 
-    let targetArray = allImages;
+    let targetArray =
+      currentBoard === "All"
+        ? allImages
+        : allImages.filter((img) => img.board === currentBoard);
 
     if (query === "is:untagged") {
-      targetArray = allImages.filter((img) => {
+      targetArray = targetArray.filter((img) => {
         const hasTextTags = img.tags.some(
           (tag) => !tag.startsWith("http://") && !tag.startsWith("https://")
         );
         return !hasTextTags;
       });
     } else if (query) {
-      targetArray = allImages.filter(
+      targetArray = targetArray.filter(
         (img) =>
           img.tags.some((tag) => tag.toLowerCase().includes(query)) ||
           img.filename.toLowerCase().includes(query)
@@ -733,7 +1000,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderGallery(shuffleArray([...targetArray]));
   });
 
-  // --- REBUILT: Takes the global index, sets tracker, and loads media ---
   function openLightbox(index) {
     if (index < 0 || index >= currentRenderList.length) return;
 
@@ -796,7 +1062,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function closeLightbox() {
     lightbox.classList.remove("is-active");
     document.body.classList.remove("lightbox-open");
-    currentLightboxIndex = -1; // Reset tracker
+    currentLightboxIndex = -1;
 
     setTimeout(() => {
       lightboxContent.innerHTML = "";
@@ -812,34 +1078,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // --- REBUILT: Global Keydown Listener for Lightbox Navigation ---
   document.addEventListener("keydown", (e) => {
-    // 1. If Autocomplete is open, let its own handler handle escape
     if (autocompleteBox.style.display === "flex") {
       if (e.key === "Escape") hideAutocomplete();
       return;
     }
 
-    // 2. Lightbox Navigation
+    if (boardSelectOptions.classList.contains("is-open")) {
+      if (e.key === "Escape") {
+        boardSelectOptions.classList.remove("is-open");
+        boardSelectTrigger.classList.remove("is-open");
+      }
+      return;
+    }
+
     if (lightbox.classList.contains("is-active")) {
       if (e.key === "Escape") {
         closeLightbox();
       } else if (e.key === "ArrowLeft") {
-        e.preventDefault(); // Stop page scrolling
+        e.preventDefault();
         let newIndex = currentLightboxIndex - 1;
-        // Wrap around to the very end if we are at the first item
         if (newIndex < 0) newIndex = currentRenderList.length - 1;
         if (currentRenderList.length > 0) openLightbox(newIndex);
       } else if (e.key === "ArrowRight") {
-        e.preventDefault(); // Stop page scrolling
+        e.preventDefault();
         let newIndex = currentLightboxIndex + 1;
-        // Wrap around to the beginning if we hit the end
         if (newIndex >= currentRenderList.length) newIndex = 0;
         if (currentRenderList.length > 0) openLightbox(newIndex);
       }
-    }
-    // 3. Selection Mode Cancel
-    else if (isSelectMode && e.key === "Escape") {
+    } else if (isSelectMode && e.key === "Escape") {
       selectModeBtn.click();
     }
   });
