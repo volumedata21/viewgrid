@@ -1,10 +1,12 @@
 import os
+import sys
 import re
 import json
 import sqlite3
 import shutil
 import mimetypes
 import subprocess
+import argparse
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, unquote
 
@@ -15,6 +17,16 @@ DB_FILE = os.path.join(BASE_DIR, 'tags.db')
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.webm', '.mp4'}
 
 os.makedirs(MEDIA_FOLDER, exist_ok=True)
+
+def get_all_media_files():
+    valid_files = set()
+    for root, dirs, files in os.walk(MEDIA_FOLDER):
+        for f in files:
+            if f.lower().endswith(tuple(ALLOWED_EXTENSIONS)):
+                abs_path = os.path.join(root, f)
+                rel_path = os.path.relpath(abs_path, MEDIA_FOLDER)
+                valid_files.add(rel_path)
+    return valid_files
 
 def init_db():
     with sqlite3.connect(DB_FILE) as conn:
@@ -28,9 +40,8 @@ def init_db():
         conn.commit()
 
 def cleanup_orphaned_tags():
-    """Removes DB entries for media that was deleted from the hard drive."""
     try:
-        valid_files = set(f for f in os.listdir(MEDIA_FOLDER) if f.lower().endswith(tuple(ALLOWED_EXTENSIONS)))
+        valid_files = get_all_media_files()
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT filename FROM image_tags')
@@ -46,40 +57,33 @@ def cleanup_orphaned_tags():
         print(f"Cleanup error: {e}")
 
 def read_macos_tags(filepath):
-    """Reads the macOS Finder Comment natively without external libraries."""
     try:
-        # mdls is a native macOS command that reads file metadata
         result = subprocess.run(['mdls', '-raw', '-name', 'kMDItemFinderComment', filepath], capture_output=True, text=True)
         if result.returncode == 0 and result.stdout.strip() != '(null)':
-            # Clean up the output (mdls wraps strings with spaces in quotes)
             return result.stdout.strip('"\n ')
     except Exception:
         pass
     return ""
 
 def sync_new_files_from_macos():
-    """Vacuum function: Finds new files in /media and ingests their macOS tags into SQLite."""
     try:
-        valid_files = set(f for f in os.listdir(MEDIA_FOLDER) if f.lower().endswith(tuple(ALLOWED_EXTENSIONS)))
+        valid_files = get_all_media_files()
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT filename FROM image_tags')
             db_files = set(row[0] for row in cursor.fetchall())
             
-            # Find files that are in the folder, but not in our database yet
             untracked_files = valid_files - db_files
             synced_count = 0
             
-            for f in untracked_files:
-                filepath = os.path.join(MEDIA_FOLDER, f)
+            for rel_path in untracked_files:
+                filepath = os.path.join(MEDIA_FOLDER, rel_path)
                 macos_tags = read_macos_tags(filepath)
                 if macos_tags:
-                    # Insert the tags found on the file system into our web database
-                    cursor.execute('INSERT INTO image_tags (filename, tags) VALUES (?, ?)', (f, macos_tags))
+                    cursor.execute('INSERT INTO image_tags (filename, tags) VALUES (?, ?)', (rel_path, macos_tags))
                     synced_count += 1
                 else:
-                    # Insert a blank record so we don't scan it again next time
-                    cursor.execute('INSERT INTO image_tags (filename, tags) VALUES (?, ?)', (f, ""))
+                    cursor.execute('INSERT INTO image_tags (filename, tags) VALUES (?, ?)', (rel_path, ""))
             
             conn.commit()
             if synced_count > 0:
@@ -87,7 +91,6 @@ def sync_new_files_from_macos():
     except Exception as e:
         print(f"macOS Sync error: {e}")
 
-# Initialize Database and perform bidirectional sync
 init_db()
 cleanup_orphaned_tags()
 sync_new_files_from_macos()
@@ -96,7 +99,9 @@ class GalleryHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urlparse(self.path)
 
-        if parsed_path.path == '/':
+        # --- REBUILT: SPA Routing ---
+        # If it's the root, OR it has no file extension and isn't an API/Media call, serve the app.
+        if parsed_path.path == '/' or (not '.' in parsed_path.path and not parsed_path.path.startswith(('/api/', '/media/', '/static/'))):
             self.path = '/templates/index.html'
             try:
                 return super().do_GET()
@@ -115,25 +120,31 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
             gallery_data = []
             try:
+                valid_files = get_all_media_files()
                 files_with_time = []
-                for f in os.listdir(MEDIA_FOLDER):
-                    ext = os.path.splitext(f)[1].lower()
-                    if ext in ALLOWED_EXTENSIONS:
-                        filepath = os.path.join(MEDIA_FOLDER, f)
-                        mtime = os.path.getmtime(filepath)
-                        files_with_time.append((f, mtime))
+                
+                for rel_path in valid_files:
+                    filepath = os.path.join(MEDIA_FOLDER, rel_path)
+                    mtime = os.path.getmtime(filepath)
+                    files_with_time.append((rel_path, mtime))
                 
                 files_with_time.sort(key=lambda x: x[1], reverse=True)
                 
                 with sqlite3.connect(DB_FILE) as conn:
                     cursor = conn.cursor()
-                    for f, _ in files_with_time:
-                        cursor.execute('SELECT tags FROM image_tags WHERE filename = ?', (f,))
+                    for rel_path, _ in files_with_time:
+                        cursor.execute('SELECT tags FROM image_tags WHERE filename = ?', (rel_path,))
                         row = cursor.fetchone()
                         tags = row[0].split(',') if row and row[0] else []
+                        
+                        board_name = os.path.dirname(rel_path)
+                        if not board_name:
+                            board_name = "Main" 
+                            
                         gallery_data.append({
-                            'filename': f,
-                            'url': f'/media/{f}',
+                            'filename': rel_path,
+                            'url': f'/media/{rel_path}',
+                            'board': board_name,
                             'tags': [t.strip() for t in tags if t.strip()]
                         })
             except Exception as e:
@@ -227,7 +238,6 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             filename = data.get('filename')
             tags = ','.join(data.get('tags', []))
 
-            # 1. Update SQLite (Fast read for the web UI)
             with sqlite3.connect(DB_FILE) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
@@ -237,10 +247,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 ''', (filename, tags))
                 conn.commit()
 
-            # 2. Update macOS File System (Data Portability)
             filepath = os.path.join(MEDIA_FOLDER, filename)
             if os.path.exists(filepath):
-                # Escape quotes to prevent AppleScript injection errors
                 safe_filepath = filepath.replace('"', '\\"')
                 safe_tags = tags.replace('"', '\\"')
                 
@@ -250,7 +258,6 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                     set comment of theFile to "{safe_tags}"
                 end tell
                 '''
-                # Run the command silently in the background
                 subprocess.Popen(['osascript', '-e', applescript], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             self.send_response(200)
@@ -261,7 +268,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
         self.send_error(404, "Not Found")
 
-def run(port=5000):
+# --- REBUILT: Now accepts a host argument ---
+def run(host='127.0.0.1', port=5001):
     if not mimetypes.inited:
         mimetypes.init()
     
@@ -275,10 +283,12 @@ def run(port=5000):
     mimetypes.add_type('video/webm', '.webm')
     mimetypes.add_type('video/mp4', '.mp4')
 
-    server_address = ('127.0.0.1', port)
+    server_address = (host, port)
     httpd = HTTPServer(server_address, GalleryHandler)
     
-    print(f"Server starting cleanly on http://127.0.0.1:{port}")
+    print(f"Server starting cleanly on http://{host}:{port}")
+    if host == '0.0.0.0':
+        print("⚠️ NETWORK SHARING ENABLED: Anyone on your Wi-Fi can access Tallo.")
     print(f"Drop your images/videos into: {MEDIA_FOLDER}")
     print("Press Ctrl+C to stop.")
     
@@ -288,5 +298,11 @@ def run(port=5000):
         print("\nShutting down server.")
         httpd.server_close()
 
+# --- REBUILT: Professional Command Line Arguments ---
 if __name__ == '__main__':
-    run()
+    parser = argparse.ArgumentParser(description="Tallo Gallery Server")
+    parser.add_argument('-p', '--port', type=int, default=5001, help="Port to run the server on")
+    parser.add_argument('--host', type=str, default='127.0.0.1', help="Host IP to bind to (e.g., 0.0.0.0 for mobile testing)")
+    
+    args = parser.parse_args()
+    run(host=args.host, port=args.port)
