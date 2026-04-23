@@ -14,7 +14,7 @@ Tallo (Spanish for stem) turns folders of images and videos into an image board.
 * Searchable
 * Supports sub-folder navigation
 * Supports video and animated gifs
-* Supports read-only mode
+* Supports read-only mode (disables tagging and uploads)
 * Idle mode after 5 minutes which prevents app from affecting sleep and screensavers
 * Can build locally by running the app.py file ('python3 app.py'
 * Can build locally with Docker
@@ -47,6 +47,26 @@ I've provided a compose.build.yaml file to use. Maybe I should just rename it to
 7. Media should appear when you refresh the page.
 
 Because this is a local build you can edit files if you'd like to make your own changes. For example, you can easily change the favicon image by simply replacing the /static/favicon.png image and the Dockerbuild will use whatever favicon.png file you used. The compose.build.yaml file also allows you to switch the instance to read-only mode, change ports, and map a different /media folder.
+
+### compose.build.yaml file
+```
+services:
+  tallo:
+    build: .
+    container_name: tallo
+    ports:
+      - "7000:7000"
+    volumes:
+      - ./media:/app/media
+      - ./data:/app/data
+    restart: unless-stopped
+
+    # Mode 1: Admin Mode (Full Access - Uploads and Tagging Enabled)
+    command: ["python", "app.py", "--host", "0.0.0.0", "--port", "5001"]
+
+    # Mode 2: Read-Only Mode (Uploads and Tagging Disabled)
+    # command: ["python", "app.py", "--host", "0.0.0.0", "--port", "5001", "--readonly"]
+```
 
 ### Using on Windows
 I do not have access to a Windows machine but instructions should be similar to to the MacOS/Linux instructions.
