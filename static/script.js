@@ -11,7 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const autocompleteBox = document.getElementById("autocompleteDropdown");
   const boardSelectWrapper = document.getElementById("boardSelectWrapper");
   const boardSelectTrigger = document.getElementById("boardSelectTrigger");
-  const boardSelectLabel = document.getElementById("boardSelectLabel");
   const boardSelectOptions = document.getElementById("boardSelectOptions");
 
   const mobileMenuToggle = document.getElementById("mobileMenuToggle");
@@ -25,7 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let allImages = [];
   let currentRenderList = [];
 
-  // --- REBUILT: Dynamic Memory Limits ---
   function getItemsPerPage() {
     return window.innerWidth <= 768 ? 50 : 150;
   }
@@ -39,7 +37,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentRenderId = 0;
   let currentCols = getColumnCount();
 
-  // NEW: Debounce Timer for Search
   let searchDebounceTimer;
 
   const paginationContainer = document.createElement("div");
@@ -79,13 +76,39 @@ document.addEventListener("DOMContentLoaded", () => {
     { threshold: 0.1 }
   );
 
-  // --- REBUILT: 1 Column on Mobile ---
   function getColumnCount() {
     const width = window.innerWidth;
     if (width <= 600) return 1;
     if (width <= 900) return 2;
     if (width <= 1400) return 3;
     return 4;
+  }
+
+  function getSortedBoards() {
+    const rawBoards = allImages.map((img) => img.board).filter((b) => b);
+    let allFolders = new Set();
+
+    rawBoards.forEach((board) => {
+      let parts = board.split("/");
+      let currentPath = "";
+      for (let i = 0; i < parts.length; i++) {
+        currentPath = currentPath ? currentPath + "/" + parts[i] : parts[i];
+        allFolders.add(currentPath);
+      }
+    });
+
+    const uniqueBoards = [...allFolders];
+    uniqueBoards.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    return ["All", ...uniqueBoards];
+  }
+
+  // --- NEW: Helper function to recursively grab images from subfolders ---
+  function getActiveBoardImages() {
+    if (currentBoard === "All") return allImages;
+    return allImages.filter(
+      (img) =>
+        img.board === currentBoard || img.board.startsWith(currentBoard + "/")
+    );
   }
 
   window.addEventListener("resize", () => {
@@ -128,10 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const response = await fetch("/api/gallery");
     allImages = await response.json();
 
-    const boards = [
-      "All",
-      ...new Set(allImages.map((img) => img.board)),
-    ].filter((b) => b);
+    const boards = getSortedBoards();
     const savedBoard = localStorage.getItem("tallo_board");
 
     currentBoard =
@@ -150,16 +170,13 @@ document.addEventListener("DOMContentLoaded", () => {
       isShuffled = false;
       shuffleBtn.classList.remove("active-mode");
       updateGlobalTags();
-      let baseArray = allImages.filter((img) => img.board === currentBoard);
-      renderGallery(baseArray);
+      // Replace hard match with recursive match
+      renderGallery(getActiveBoardImages());
     }
   }
 
   function setBoardFromURL() {
-    const boards = [
-      "All",
-      ...new Set(allImages.map((img) => img.board)),
-    ].filter((b) => b);
+    const boards = getSortedBoards();
     const urlPath = window.location.pathname.replace(/^\/|\/$/g, "");
 
     if (!urlPath) {
@@ -192,16 +209,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildCustomDropdown() {
-    const boards = [
-      "All",
-      ...new Set(allImages.map((img) => img.board)),
-    ].filter((b) => b);
+    const boards = getSortedBoards();
     boardSelectOptions.innerHTML = "";
 
-    boardSelectLabel.textContent =
+    boardSelectTrigger.title =
       currentBoard === "All" ? "All Boards" : currentBoard;
-    boardSelectLabel.className =
-      currentBoard === "All" ? "all-boards-label" : "";
+    if (currentBoard === "All") {
+      boardSelectTrigger.classList.remove("active-mode");
+    } else {
+      boardSelectTrigger.classList.add("active-mode");
+    }
 
     boards.forEach((b) => {
       const opt = document.createElement("div");
@@ -212,7 +229,19 @@ document.addEventListener("DOMContentLoaded", () => {
         opt.classList.add("all-boards-opt");
         if (currentBoard === "All") opt.classList.add("is-selected");
       } else {
-        opt.textContent = b;
+        // --- NEW: Visual Indentation Logic for Subfolders ---
+        const parts = b.split("/");
+        const depth = parts.length - 1;
+        const displayName = parts[parts.length - 1]; // Only show the active subfolder name
+
+        if (depth > 0) {
+          opt.innerHTML = `<span style="opacity: 0.4; font-size: 0.9em; margin-right: 6px;">↳</span>${displayName}`;
+          // Multiply indent spacing by depth level
+          opt.style.paddingLeft = `calc(1rem + ${depth * 18}px)`;
+        } else {
+          opt.textContent = displayName;
+        }
+
         if (currentBoard === b) opt.classList.add("is-selected");
       }
 
@@ -224,14 +253,19 @@ document.addEventListener("DOMContentLoaded", () => {
           .forEach((el) => el.classList.remove("is-selected"));
         opt.classList.add("is-selected");
 
-        boardSelectLabel.textContent = b === "All" ? "All Boards" : b;
-        boardSelectLabel.className = b === "All" ? "all-boards-label" : "";
+        currentBoard = b;
+        localStorage.setItem("tallo_board", b);
+
+        boardSelectTrigger.title =
+          currentBoard === "All" ? "All Boards" : currentBoard;
+        if (currentBoard === "All") {
+          boardSelectTrigger.classList.remove("active-mode");
+        } else {
+          boardSelectTrigger.classList.add("active-mode");
+        }
 
         boardSelectOptions.classList.remove("is-open");
         boardSelectTrigger.classList.remove("is-open");
-
-        currentBoard = b;
-        localStorage.setItem("tallo_board", b);
 
         const newUrl = b === "All" ? "/" : `/${b}`;
         window.history.pushState({ board: b }, "", newUrl);
@@ -279,10 +313,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let freq = {};
     let untaggedCount = 0;
 
-    let activeBoardImages =
-      currentBoard === "All"
-        ? allImages
-        : allImages.filter((img) => img.board === currentBoard);
+    // Replace hard match with recursive match
+    let activeBoardImages = getActiveBoardImages();
 
     activeBoardImages.forEach((img) => {
       let hasRealTag = false;
@@ -433,9 +465,7 @@ document.addEventListener("DOMContentLoaded", () => {
               const renderedCard = document.querySelector(
                 `.glass-card[data-filename="${itemToSelect.filename}"]`
               );
-              if (renderedCard) {
-                renderedCard.classList.add("is-selected");
-              }
+              if (renderedCard) renderedCard.classList.add("is-selected");
             }
             document.getSelection().removeAllRanges();
           } else {
@@ -466,9 +496,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (isVideo) {
         mediaEl = document.createElement("video");
         mediaEl.src = imgData.url;
+        mediaEl.loading = "lazy";
         mediaEl.loop = true;
         mediaEl.muted = true;
         mediaEl.playsInline = true;
+        mediaEl.preload = "metadata";
         videoObserver.observe(mediaEl);
       } else {
         mediaEl = document.createElement("img");
@@ -495,9 +527,7 @@ document.addEventListener("DOMContentLoaded", () => {
       input.addEventListener("input", (e) =>
         filterAutocomplete(e.target.value)
       );
-      input.addEventListener("blur", () => {
-        setTimeout(hideAutocomplete, 200);
-      });
+      input.addEventListener("blur", () => setTimeout(hideAutocomplete, 200));
 
       input.addEventListener("keydown", (e) => {
         if (handleAutocompleteKeyboardNav(e)) return;
@@ -601,14 +631,21 @@ document.addEventListener("DOMContentLoaded", () => {
     tag.className = "tag";
     const isUrl =
       tagText.startsWith("http://") || tagText.startsWith("https://");
+    let isMap = false;
 
     if (isUrl) {
       tag.classList.add("url-tag");
+      if (
+        tagText.includes("google.com/maps") ||
+        tagText.includes("goo.gl/maps") ||
+        tagText.includes("maps.app.goo.gl")
+      ) {
+        isMap = true;
+        tag.classList.add("map-tag");
+      }
     }
 
-    if (tagText === "All Boards") {
-      tag.style.fontSize = "0.2rem";
-    }
+    if (tagText === "All Boards") tag.style.fontSize = "0.2rem";
 
     tag.addEventListener("click", (e) => {
       if (isSelectMode) return;
@@ -627,7 +664,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isUrl) {
       try {
         const urlObj = new URL(tagText);
-        text.textContent = "↗ " + urlObj.hostname.replace("www.", "");
+        if (isMap) {
+          text.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
+        } else {
+          text.textContent = "↗ " + urlObj.hostname.replace("www.", "");
+        }
       } catch (e) {
         text.textContent = "↗ Link";
       }
@@ -676,10 +717,8 @@ document.addEventListener("DOMContentLoaded", () => {
   async function applyBatchTag(tagText) {
     let promises = [];
 
-    let activeBoardImages =
-      currentBoard === "All"
-        ? allImages
-        : allImages.filter((img) => img.board === currentBoard);
+    // Replace hard match with recursive match
+    let activeBoardImages = getActiveBoardImages();
 
     activeBoardImages.forEach((img) => {
       if (selectedImages.has(img.filename) && !img.tags.includes(tagText)) {
@@ -689,9 +728,8 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll(".glass-card").forEach((card) => {
           if (card.dataset.filename === img.filename) {
             const tagsList = card.querySelector(".tags-list");
-            if (tagsList) {
+            if (tagsList)
               tagsList.appendChild(createTagElement(tagText, img, tagsList));
-            }
           }
         });
       }
@@ -717,17 +755,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const rect = activeInputEl.getBoundingClientRect();
     autocompleteBox.style.width = `${rect.width}px`;
 
-    // --- REBUILT: Position Autocomplete Based on Mobile Keyboard State ---
     if (window.innerWidth <= 768) {
       autocompleteBox.style.position = "fixed";
       autocompleteBox.style.left = `${rect.left}px`;
 
       if (navEl.classList.contains("keyboard-open")) {
-        // If nav is at top, drop DOWN
         autocompleteBox.style.bottom = "auto";
         autocompleteBox.style.top = `${rect.bottom + 4}px`;
       } else {
-        // If nav is at bottom, drop UP
         autocompleteBox.style.top = "auto";
         autocompleteBox.style.bottom = `${window.innerHeight - rect.top + 4}px`;
       }
@@ -847,7 +882,6 @@ document.addEventListener("DOMContentLoaded", () => {
     activeSuggestionIndex = -1;
   }
 
-  // --- REBUILT: Snap Nav to Top on Mobile Focus ---
   searchInput.addEventListener("focus", (e) => {
     boardSelectOptions.classList.remove("is-open");
     boardSelectTrigger.classList.remove("is-open");
@@ -858,15 +892,9 @@ document.addEventListener("DOMContentLoaded", () => {
     showAutocomplete(e.target, "search");
   });
 
-  // --- REBUILT: Debounce Search Input to stop Jitter ---
   searchInput.addEventListener("input", (e) => {
-    // 1. Immediately show autocomplete suggestions without delay
     filterAutocomplete(e.target.value);
-
-    // 2. Clear the old timer
     clearTimeout(searchDebounceTimer);
-
-    // 3. Set a new timer to wait 300ms before doing the heavy grid re-render
     searchDebounceTimer = setTimeout(() => {
       applyFiltersAndRender();
     }, 300);
@@ -896,10 +924,8 @@ document.addEventListener("DOMContentLoaded", () => {
     isShuffled = false;
     shuffleBtn.classList.remove("active-mode");
 
-    let baseArray =
-      currentBoard === "All"
-        ? allImages
-        : allImages.filter((img) => img.board === currentBoard);
+    // Replace hard match with recursive match
+    let baseArray = getActiveBoardImages();
 
     if (!query) {
       searchWrapper.classList.remove("is-active");
@@ -941,8 +967,9 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("tallo_board", "All");
     window.history.pushState(null, "", "/");
 
-    boardSelectLabel.textContent = "All Boards";
-    boardSelectLabel.className = "all-boards-label";
+    boardSelectTrigger.title = "All Boards";
+    boardSelectTrigger.classList.remove("active-mode");
+
     boardSelectOptions.querySelectorAll(".custom-option").forEach((el) => {
       el.classList.toggle(
         "is-selected",
@@ -977,10 +1004,8 @@ document.addEventListener("DOMContentLoaded", () => {
     lastSelectedIndex = null;
     currentPage = 1;
 
-    let targetArray =
-      currentBoard === "All"
-        ? allImages
-        : allImages.filter((img) => img.board === currentBoard);
+    // Replace hard match with recursive match
+    let targetArray = getActiveBoardImages();
 
     if (query === "is:untagged") {
       targetArray = targetArray.filter((img) => {
@@ -1029,16 +1054,35 @@ document.addEventListener("DOMContentLoaded", () => {
     imgData.tags.forEach((tagText) => {
       const isUrl =
         tagText.startsWith("http://") || tagText.startsWith("https://");
+      let isMap = false;
+
       const span = document.createElement("span");
       span.className = "cloud-tag";
 
       if (isUrl) {
-        span.style.background = "rgba(13, 148, 136, 0.15)";
-        span.style.borderColor = "rgba(13, 148, 136, 0.3)";
-        span.style.textTransform = "none";
+        span.classList.add("url-tag");
+        if (
+          tagText.includes("google.com/maps") ||
+          tagText.includes("goo.gl/maps") ||
+          tagText.includes("maps.app.goo.gl")
+        ) {
+          isMap = true;
+          span.classList.add("map-tag");
+        }
+      }
+
+      if (isUrl) {
         try {
           const urlObj = new URL(tagText);
-          span.textContent = "↗ " + urlObj.hostname.replace("www.", "");
+          if (isMap) {
+            span.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: 0 auto;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
+            span.style.padding = "4px 8px";
+          } else {
+            span.textContent = "↗ " + urlObj.hostname.replace("www.", "");
+            span.style.background = "rgba(13, 148, 136, 0.15)";
+            span.style.borderColor = "rgba(13, 148, 136, 0.3)";
+            span.style.textTransform = "none";
+          }
         } catch (e) {
           span.textContent = "↗ Link";
         }
@@ -1055,6 +1099,8 @@ document.addEventListener("DOMContentLoaded", () => {
       lightboxTags.appendChild(span);
     });
 
+    document.querySelectorAll("#gallery video").forEach((vid) => vid.pause());
+
     document.body.classList.add("lightbox-open");
     lightbox.classList.add("is-active");
   }
@@ -1067,18 +1113,43 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       lightboxContent.innerHTML = "";
       lightboxTags.innerHTML = "";
+
+      document.querySelectorAll("#gallery video").forEach((vid) => {
+        const rect = vid.getBoundingClientRect();
+        const isVisible = rect.top < window.innerHeight && rect.bottom >= 0;
+        if (isVisible)
+          vid.play().catch((e) => console.log("Autoplay prevented:", e));
+      });
     }, 300);
   }
 
   lightboxClose.addEventListener("click", closeLightbox);
 
   lightbox.addEventListener("click", (e) => {
-    if (e.target === lightbox || e.target === lightboxTags) {
-      closeLightbox();
-    }
+    if (e.target === lightbox || e.target === lightboxTags) closeLightbox();
   });
 
   document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+      if (e.key === "Escape") {
+        e.target.blur();
+        hideAutocomplete();
+      }
+      return;
+    }
+
+    if (e.key === "/") {
+      e.preventDefault();
+      searchInput.focus();
+      return;
+    }
+
+    if (e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      shuffleBtn.click();
+      return;
+    }
+
     if (autocompleteBox.style.display === "flex") {
       if (e.key === "Escape") hideAutocomplete();
       return;
@@ -1111,5 +1182,87 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  const dropZone = document.body;
+  const uploadOverlay = document.createElement("div");
+  uploadOverlay.className = "upload-overlay";
+  uploadOverlay.innerHTML = "<h2>Drop files to upload</h2>";
+  document.body.appendChild(uploadOverlay);
+
+  let dragCounter = 0;
+
+  dropZone.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    dragCounter++;
+    uploadOverlay.classList.add("active");
+  });
+
+  dropZone.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) uploadOverlay.classList.remove("active");
+  });
+
+  dropZone.addEventListener("dragover", (e) => e.preventDefault());
+
+  dropZone.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    uploadOverlay.classList.remove("active");
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      uploadOverlay.innerHTML = "<h2>Uploading...</h2>";
+      uploadOverlay.classList.add("active");
+
+      for (let file of files) await uploadFile(file);
+
+      uploadOverlay.classList.remove("active");
+      setTimeout(() => {
+        uploadOverlay.innerHTML = "<h2>Drop files to upload</h2>";
+      }, 300);
+      fetchGallery();
+    }
+  });
+
+  async function uploadFile(file) {
+    await fetch("/api/upload", {
+      method: "POST",
+      headers: { "X-File-Name": encodeURIComponent(file.name) },
+      body: file,
+    });
+  }
+
   fetchGallery();
+
+  // --- NEW: Smart Idle/Sleep Manager ---
+  // Browsers prevent Mac sleep when videos are playing.
+  // This pauses all media if you step away for 5 minutes.
+  let idleTimer;
+  const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+  function wakeUp() {
+    clearTimeout(idleTimer);
+
+    // If we are waking up, check which videos are currently on screen and play them
+    document.querySelectorAll("#gallery video").forEach((vid) => {
+      const rect = vid.getBoundingClientRect();
+      const isVisible = rect.top < window.innerHeight && rect.bottom >= 0;
+      if (isVisible) {
+        vid.play().catch((e) => console.log("Autoplay prevented:", e));
+      }
+    });
+
+    // Start the countdown to sleep
+    idleTimer = setTimeout(() => {
+      console.log("Tallo is idle: Pausing videos to allow system sleep.");
+      document.querySelectorAll("video").forEach((vid) => vid.pause());
+    }, IDLE_TIMEOUT_MS);
+  }
+
+  // Listen for any human interaction to reset the timer
+  ["mousemove", "scroll", "keydown", "click", "touchstart"].forEach((evt) => {
+    window.addEventListener(evt, wakeUp, { passive: true });
+  });
+
+  wakeUp(); // Start the timer on initial load
 });
