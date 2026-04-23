@@ -19,4 +19,4 @@ Tallo (Spanish for stem) turns folders of images and videos into an image board.
 * Can build locally with Docker
 
 ## AI Disclosure
-I'm a terrible coder and used Gemini to build this app. AI did not help with this write-up and I did not use AI to create the Favicon. I created the favicon in Photoshop.
+I'm a terrible coder and used Gemini to build this app. AI did not help with this write-up and I did not use AI to create the favicon/logo. I created the favicon/logo in Photoshop.
