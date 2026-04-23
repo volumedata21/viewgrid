@@ -31,6 +31,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ==========================================================================
+   NAVIGATION & SEARCH
+   ========================================================================== */
+
 .v-nav {
   position: sticky;
   top: 24px;
@@ -70,6 +74,12 @@ body {
   gap: 12px;
 }
 
+.nav-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .icon-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid transparent;
@@ -83,7 +93,6 @@ body {
   cursor: pointer;
   transition: all 0.3s ease;
   outline: none;
-  /* NEW: Prevents the button from being squished when search opens */
   flex-shrink: 0;
 }
 
@@ -113,7 +122,7 @@ body {
 .search-icon {
   position: absolute;
   left: 12px;
-  color: var(--text-secondary);
+  color: #ffffff;
   pointer-events: none;
   transition: color 0.3s ease;
 }
@@ -131,23 +140,15 @@ body {
   transition: all 0.3s ease;
 }
 
+.v-input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+  opacity: 1;
+}
+
 .v-input:focus {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--glass-border);
   width: 250px;
-}
-
-/* --- NEW: High-Contrast Mobile Search Bar --- */
-
-/* Make the magnifying glass icon pure white */
-.search-wrapper .search-icon {
-  color: #ffffff;
-}
-
-/* Make the placeholder text a crisp light grey */
-.v-input::placeholder {
-  color: rgba(255, 255, 255, 0.75);
-  opacity: 1; /* Firefox artificially dims placeholders by default, this overrides it! */
 }
 
 .search-wrapper.is-active .search-icon {
@@ -185,6 +186,135 @@ body {
   color: var(--text-primary);
 }
 
+/* ==========================================================================
+   DROPDOWNS & AUTOCOMPLETE
+   ========================================================================== */
+
+.custom-select-wrapper {
+  position: relative;
+  user-select: none;
+}
+
+.custom-select-options {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  left: auto;
+  min-width: 150px;
+  background: rgba(15, 15, 15, 0.85);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+
+  /* Scrollable Dropdown Fix */
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.custom-select-options.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* Custom Scrollbar for the Dropdown */
+.custom-select-options::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-select-options::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+.custom-select-options::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+.custom-select-options::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.custom-option {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.custom-option:hover,
+.custom-option.is-selected {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.custom-option.all-boards-opt {
+  font-size: 0.75rem !important;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.autocomplete-glass {
+  position: absolute;
+  background: rgba(15, 15, 15, 0.85);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: none;
+  flex-direction: column;
+  max-height: 200px;
+  overflow-y: auto;
+  min-width: 150px;
+  padding: 4px;
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.is-highlighted {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.autocomplete-item.is-highlighted {
+  background: rgba(255, 255, 255, 0.15);
+  border-left: 2px solid var(--select-color);
+  padding-left: 10px;
+}
+
+.autocomplete-match {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   GLOBAL TAG CLOUD
+   ========================================================================== */
+
 .global-tag-cloud-wrapper {
   position: sticky;
   top: 95px;
@@ -200,14 +330,12 @@ body {
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 10px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .global-tag-cloud::-webkit-scrollbar {
   display: none;
-}
-.global-tag-cloud {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 .cloud-tag {
@@ -233,12 +361,11 @@ body {
   transform: translateY(2px);
 }
 
-/* --- REBUILT: System Tag (Untagged Filter) --- */
 .cloud-tag.system-tag {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.1);
   color: var(--text-secondary);
-  border-style: dashed; /* Subtle visual cue that it represents empty/missing tags */
+  border-style: dashed;
 }
 
 .cloud-tag.system-tag:hover {
@@ -246,6 +373,10 @@ body {
   border-color: rgba(255, 255, 255, 0.3);
   color: var(--text-primary);
 }
+
+/* ==========================================================================
+   MASONRY GALLERY & CARDS
+   ========================================================================== */
 
 .masonry-grid {
   display: flex;
@@ -298,6 +429,37 @@ body {
   transition: opacity 0.3s ease;
 }
 
+.card-expand-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.card-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.glass-card:hover .card-expand-btn,
+.glass-card.is-selected .card-expand-btn,
+.glass-card.show-mobile-overlay .card-expand-btn {
+  opacity: 1;
+}
+
 .tag-container {
   position: absolute;
   bottom: 0;
@@ -332,11 +494,8 @@ body {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  /* Scaled padding down to 72% */
   padding: 3px 7px;
-  /* Scaled radius down to 72% */
   border-radius: 4px;
-  /* Scaled font down from 0.7rem to 0.5rem (approx 72%) */
   font-size: 0.5rem;
   font-weight: 500;
   letter-spacing: 0.05em;
@@ -361,6 +520,19 @@ body {
   border-color: rgba(13, 148, 136, 0.5);
 }
 
+.tag.map-tag {
+  background: rgba(167, 243, 208, 0.15);
+  border-color: rgba(167, 243, 208, 0.3);
+  color: #a7f3d0;
+  padding: 4px 6px;
+}
+
+.tag.map-tag:hover {
+  background: rgba(167, 243, 208, 0.25);
+  border-color: rgba(167, 243, 208, 0.5);
+  color: #ffffff;
+}
+
 .tag-text {
   pointer-events: none;
 }
@@ -368,7 +540,6 @@ body {
 .tag-del {
   margin-left: 5px;
   color: var(--text-secondary);
-  /* Scaled the 'x' button down from 1rem to 0.75rem */
   font-size: 0.75rem;
   line-height: 0.5;
   opacity: 0;
@@ -391,12 +562,9 @@ body {
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   color: var(--text-primary);
-  /* Scaled input padding down */
   padding: 7px 9px;
-  /* Scaled input radius down */
   border-radius: 6px;
   outline: none;
-  /* Scaled input text down from 0.8rem to 0.6rem */
   font-size: 0.6rem;
   font-family: inherit;
 }
@@ -405,54 +573,19 @@ body {
   border-color: rgba(255, 255, 255, 0.4);
 }
 
-.autocomplete-glass {
-  position: absolute;
-  background: rgba(15, 15, 15, 0.85);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-
-  /* FIX: Increased from 1000 to sit firmly above the 9999 nav bar */
-  z-index: 10000;
-
-  display: none;
-  flex-direction: column;
-  max-height: 200px;
-  overflow-y: auto;
-  min-width: 150px;
-  padding: 4px;
+body.select-mode-active {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.autocomplete-item {
-  padding: 8px 12px;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 6px;
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
+body.select-mode-active .v-input {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
-.autocomplete-item:hover,
-.autocomplete-item.is-highlighted {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-}
-
-.autocomplete-item.is-highlighted {
-  background: rgba(255, 255, 255, 0.15);
-  border-left: 2px solid var(--select-color);
-  padding-left: 10px;
-}
-
-.autocomplete-match {
-  color: var(--text-primary);
-  font-weight: 600;
-}
+/* ==========================================================================
+   GLOBAL SCROLLBARS & UI COMPONENTS
+   ========================================================================== */
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -468,15 +601,88 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
-body.select-mode-active {
-  user-select: none;
-  -webkit-user-select: none;
+.upload-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 132, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  border: 4px dashed var(--select-color);
 }
 
-body.select-mode-active .v-input {
-  user-select: text;
-  -webkit-user-select: text;
+.upload-overlay.active {
+  opacity: 1;
 }
+
+.upload-overlay h2 {
+  color: white;
+  font-size: 2rem;
+  pointer-events: none;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+/* ==========================================================================
+   PAGINATION
+   ========================================================================== */
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 40px 24px 60px 24px;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+}
+
+.page-num-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: all 0.2s ease;
+}
+
+.page-num-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.page-num-btn.active {
+  background: var(--select-color);
+  color: white;
+  border-color: var(--select-color);
+  box-shadow: 0 0 15px rgba(10, 132, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   LIGHTBOX OVERLAY
+   ========================================================================== */
 
 .lightbox-overlay {
   position: fixed;
@@ -548,175 +754,15 @@ body.lightbox-open {
   overflow: hidden;
 }
 
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 40px 24px 60px 24px;
-  grid-column: 1 / -1;
-  flex-wrap: wrap;
-}
-
-.page-num-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  font-family: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  transition: all 0.2s ease;
-}
-
-.page-num-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.page-num-btn.active {
-  background: var(--select-color);
-  color: white;
-  border-color: var(--select-color);
-  box-shadow: 0 0 15px rgba(10, 132, 255, 0.4);
-  transform: translateY(-2px);
-}
-
-/* --- REBUILT: Custom Frosted Dropdown --- */
-.custom-select-wrapper {
-  position: relative;
-  user-select: none;
-}
-
-.custom-select-trigger {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.custom-select-trigger:hover,
-.custom-select-trigger.is-open {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-color: var(--glass-border);
-}
-
-.custom-select-options {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  min-width: 150px;
-  background: rgba(15, 15, 15, 0.85);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-10px);
-  transition: all 0.2s ease;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  z-index: 200;
-}
-
-.custom-select-options.is-open {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
-}
-
-.custom-option {
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  transition: all 0.2s ease;
-}
-
-.custom-option:hover,
-.custom-option.is-selected {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-}
-
-/* User Request: Make 'All Boards' one size smaller */
-.custom-option.all-boards-opt,
-.all-boards-label {
-  font-size: 0.75rem !important;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.v-select:hover,
-.v-select:focus {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-color: var(--glass-border);
-}
-
-.v-select option {
-  background: var(--bg-color);
-  color: var(--text-primary);
-}
-
-/* --- NEW: Fullscreen Enlarge Button (Visible on hover desktop, or tap mobile) --- */
-.card-expand-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: all 0.2s ease;
-  z-index: 10;
-}
-
-.card-expand-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
-}
-
-.glass-card:hover .card-expand-btn,
-.glass-card.is-selected .card-expand-btn,
-.glass-card.show-mobile-overlay .card-expand-btn {
-  opacity: 1;
-}
-
-/* Helper class for grouping the desktop filters */
-.nav-filters {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+/* ==========================================================================
+   MOBILE RESPONSIVENESS
+   ========================================================================== */
 
 .mobile-only {
   display: none;
 }
 
-/* --- REBUILT: MOBILE RESPONSIVENESS (BULLETPROOF LAYOUT) --- */
 @media (max-width: 768px) {
-  /* Kill the Phantom Width */
   html,
   body {
     overflow-x: hidden;
@@ -735,7 +781,6 @@ body.lightbox-open {
     display: flex;
   }
 
-  /* Bulletproof Centering */
   .v-nav {
     position: fixed;
     top: auto;
@@ -755,7 +800,6 @@ body.lightbox-open {
     z-index: 9999;
   }
 
-  /* --- MOVED: Snaps nav to the top when the virtual keyboard is open --- */
   .v-nav.keyboard-open {
     bottom: auto;
     top: 12px;
@@ -797,7 +841,6 @@ body.lightbox-open {
     width: 100%;
   }
 
-  /* --- MOVED: Explicitly force the trigger button to fill the stretched container ONLY on mobile --- */
   .custom-select-trigger {
     width: 100%;
     box-sizing: border-box;
@@ -808,7 +851,6 @@ body.lightbox-open {
     width: 100%;
   }
 
-  /* Make Custom Dropdown open UPWARDS */
   .custom-select-options {
     top: auto;
     bottom: calc(100% + 8px);
@@ -819,7 +861,6 @@ body.lightbox-open {
     transform: translateY(0);
   }
 
-  /* Sticky Tags at Top */
   .global-tag-cloud-wrapper {
     position: sticky;
     top: 0;
@@ -838,7 +879,6 @@ body.lightbox-open {
     padding: 0 16px;
   }
 
-  /* Reset grid margins */
   .masonry-grid {
     padding: 0 12px 20px 12px;
     gap: 10px;
@@ -848,12 +888,10 @@ body.lightbox-open {
     gap: 10px;
   }
 
-  /* Add padding to bottom so cards aren't hidden by the bottom nav */
   .pagination-container {
     padding-bottom: 120px;
   }
 
-  /* Mobile "Tap to Reveal" State */
   .tag-container {
     opacity: 0;
   }
@@ -878,10 +916,4 @@ body.lightbox-open {
   .lightbox-tags {
     max-width: 95vw;
   }
-}
-
-/* --- NEW: Snaps nav to the top when the virtual keyboard is open --- */
-.v-nav.keyboard-open {
-  bottom: auto;
-  top: 12px;
 }
