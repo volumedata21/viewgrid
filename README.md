@@ -15,6 +15,7 @@ Tallo (Spanish for stem) turns folders of images and videos into an image board.
 * Supports sub-folder navigation
 * Supports video and animated gifs
 * Supports read-only mode
+* Idle mode after 5 minutes which prevents app from affecting sleep and screensavers
 * Can build locally by running the app.py file ('python3 app.py'
 * Can build locally with Docker
 
