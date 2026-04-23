@@ -7,21 +7,34 @@ import shutil
 import mimetypes
 import subprocess
 import argparse
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, unquote
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MEDIA_FOLDER = os.path.join(BASE_DIR, 'media')
-DB_FILE = os.path.join(BASE_DIR, 'tags.db')
 
-ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.webm', '.mp4'}
+# --- NEW: Create a dedicated data folder for the database ---
+DATA_FOLDER = os.path.join(BASE_DIR, 'data')
+DB_FILE = os.path.join(DATA_FOLDER, 'tags.db')
+IS_READONLY = False
+
+# Note: .json is deliberately NOT here so sidecars aren't treated as images
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.webm', '.mp4', '.mov'}
 
 os.makedirs(MEDIA_FOLDER, exist_ok=True)
+os.makedirs(DATA_FOLDER, exist_ok=True)
 
 def get_all_media_files():
     valid_files = set()
-    for root, dirs, files in os.walk(MEDIA_FOLDER):
+    for root, dirs, files in os.walk(MEDIA_FOLDER, followlinks=True):
+        
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['@eaDir', '#recycle']]
+        
         for f in files:
+            # Ignore Mac 'AppleDouble' ghost files
+            if f.startswith('.'):
+                continue
+                
             if f.lower().endswith(tuple(ALLOWED_EXTENSIONS)):
                 abs_path = os.path.join(root, f)
                 rel_path = os.path.relpath(abs_path, MEDIA_FOLDER)
@@ -56,6 +69,17 @@ def cleanup_orphaned_tags():
     except Exception as e:
         print(f"Cleanup error: {e}")
 
+def read_sidecar_tags(filepath):
+    sidecar_path = filepath + '.json'
+    if os.path.exists(sidecar_path):
+        try:
+            with open(sidecar_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return ",".join(data.get("tags", []))
+        except Exception as e:
+            print(f"Error reading sidecar {sidecar_path}: {e}")
+    return None 
+
 def read_macos_tags(filepath):
     try:
         result = subprocess.run(['mdls', '-raw', '-name', 'kMDItemFinderComment', filepath], capture_output=True, text=True)
@@ -65,42 +89,64 @@ def read_macos_tags(filepath):
         pass
     return ""
 
-def sync_new_files_from_macos():
+def sync_files_metadata():
     try:
         valid_files = get_all_media_files()
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT filename FROM image_tags')
-            db_files = set(row[0] for row in cursor.fetchall())
+            migrated_count = 0
             
-            untracked_files = valid_files - db_files
-            synced_count = 0
-            
-            for rel_path in untracked_files:
+            for rel_path in valid_files:
                 filepath = os.path.join(MEDIA_FOLDER, rel_path)
-                macos_tags = read_macos_tags(filepath)
-                if macos_tags:
-                    cursor.execute('INSERT INTO image_tags (filename, tags) VALUES (?, ?)', (rel_path, macos_tags))
-                    synced_count += 1
+                sidecar_path = filepath + '.json'
+                tags_to_save = ""
+                
+                if os.path.exists(sidecar_path):
+                    sidecar_tags = read_sidecar_tags(filepath)
+                    if sidecar_tags is not None:
+                        tags_to_save = sidecar_tags
                 else:
-                    cursor.execute('INSERT INTO image_tags (filename, tags) VALUES (?, ?)', (rel_path, ""))
+                    macos_tags = read_macos_tags(filepath)
+                    if macos_tags:
+                        tags_to_save = macos_tags
+                    else:
+                        cursor.execute('SELECT tags FROM image_tags WHERE filename = ?', (rel_path,))
+                        row = cursor.fetchone()
+                        if row and row[0]:
+                            tags_to_save = row[0]
+                    
+                    if tags_to_save:
+                        tag_list = [t.strip() for t in tags_to_save.split(',') if t.strip()]
+                        try:
+                            with open(sidecar_path, 'w', encoding='utf-8') as f:
+                                json.dump({"tags": tag_list}, f, indent=4)
+                            migrated_count += 1
+                        except Exception as e:
+                            print(f"Error migrating sidecar for {rel_path}: {e}")
+                
+                cursor.execute('''
+                    INSERT INTO image_tags (filename, tags) 
+                    VALUES (?, ?)
+                    ON CONFLICT(filename) DO UPDATE SET tags=excluded.tags
+                ''', (rel_path, tags_to_save))
             
             conn.commit()
-            if synced_count > 0:
-                print(f"Ingested existing tags from {synced_count} files via macOS metadata.")
+            if migrated_count > 0:
+                print(f"✅ Master Audit complete: Migrated {migrated_count} files to Universal JSON sidecars.")
+            else:
+                print("✅ Metadata is fully synced.")
+                
     except Exception as e:
-        print(f"macOS Sync error: {e}")
+        print(f"Metadata Sync error: {e}")
 
 init_db()
 cleanup_orphaned_tags()
-sync_new_files_from_macos()
+sync_files_metadata()
 
 class GalleryHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urlparse(self.path)
 
-        # --- REBUILT: SPA Routing ---
-        # If it's the root, OR it has no file extension and isn't an API/Media call, serve the app.
         if parsed_path.path == '/' or (not '.' in parsed_path.path and not parsed_path.path.startswith(('/api/', '/media/', '/static/'))):
             self.path = '/templates/index.html'
             try:
@@ -137,13 +183,16 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                         row = cursor.fetchone()
                         tags = row[0].split(',') if row and row[0] else []
                         
-                        board_name = os.path.dirname(rel_path)
+                        # --- NEW: Standardize everything to forward slashes ---
+                        clean_rel_path = rel_path.replace('\\', '/')
+                        board_name = os.path.dirname(clean_rel_path)
+                        
                         if not board_name:
                             board_name = "Main" 
                             
                         gallery_data.append({
-                            'filename': rel_path,
-                            'url': f'/media/{rel_path}',
+                            'filename': clean_rel_path,
+                            'url': f'/media/{clean_rel_path}',
                             'board': board_name,
                             'tags': [t.strip() for t in tags if t.strip()]
                         })
@@ -224,8 +273,39 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 pass
 
     def do_POST(self):
+        global IS_READONLY
+        if IS_READONLY:
+            self.send_error(403, "Forbidden: Tallo is running in Read-Only mode.")
+            return
+            
         parsed_path = urlparse(self.path)
 
+        if parsed_path.path == '/api/upload':
+            encoded_filename = self.headers.get('X-File-Name')
+            if not encoded_filename:
+                self.send_error(400, "Missing filename")
+                return
+                
+            filename = unquote(encoded_filename)
+            filename = os.path.basename(filename) 
+            
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_error(400, "Empty file")
+                return
+
+            file_data = self.rfile.read(content_length)
+
+            filepath = os.path.join(MEDIA_FOLDER, filename)
+            with open(filepath, 'wb') as f:
+                f.write(file_data)
+
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'success', 'filename': filename}).encode('utf-8'))
+            return
+            
         if parsed_path.path == '/api/tags':
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length == 0:
@@ -249,9 +329,16 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
             filepath = os.path.join(MEDIA_FOLDER, filename)
             if os.path.exists(filepath):
+                sidecar_path = filepath + '.json'
+                tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+                try:
+                    with open(sidecar_path, 'w', encoding='utf-8') as f:
+                        json.dump({"tags": tag_list}, f, indent=4)
+                except Exception as e:
+                    print(f"Error saving sidecar for {filename}: {e}")
+
                 safe_filepath = filepath.replace('"', '\\"')
                 safe_tags = tags.replace('"', '\\"')
-                
                 applescript = f'''
                 tell application "Finder"
                     set theFile to POSIX file "{safe_filepath}" as alias
@@ -268,8 +355,10 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
         self.send_error(404, "Not Found")
 
-# --- REBUILT: Now accepts a host argument ---
-def run(host='127.0.0.1', port=5001):
+def run(host='127.0.0.1', port=7000, readonly=False):
+    global IS_READONLY
+    IS_READONLY = readonly
+
     if not mimetypes.inited:
         mimetypes.init()
     
@@ -284,13 +373,21 @@ def run(host='127.0.0.1', port=5001):
     mimetypes.add_type('video/mp4', '.mp4')
 
     server_address = (host, port)
-    httpd = HTTPServer(server_address, GalleryHandler)
+    httpd = ThreadingHTTPServer(server_address, GalleryHandler)
     
-    print(f"Server starting cleanly on http://{host}:{port}")
-    if host == '0.0.0.0':
-        print("⚠️ NETWORK SHARING ENABLED: Anyone on your Wi-Fi can access Tallo.")
-    print(f"Drop your images/videos into: {MEDIA_FOLDER}")
-    print("Press Ctrl+C to stop.")
+    print("\n" + "="*50)
+    print(f"🚀 TALLO IS LIVE!")
+    print(f"👉 Service is available on: http://localhost:{port}")
+    print("="*50 + "\n")
+    
+    if readonly:
+        print("🔒 READ-ONLY MODE ACTIVE: Uploads and tagging are disabled.")
+    elif host == '0.0.0.0':
+        print("⚠️  NETWORK SHARING ENABLED: Anyone on your Wi-Fi can access Tallo.")
+        print(f"   (They can connect via your computer's IP address: http://<your-ip>:{port})")
+        
+    print(f"\n📂 Drop your images/videos into: {MEDIA_FOLDER}")
+    print("🛑 Press Ctrl+C to stop the server.")
     
     try:
         httpd.serve_forever()
@@ -298,11 +395,11 @@ def run(host='127.0.0.1', port=5001):
         print("\nShutting down server.")
         httpd.server_close()
 
-# --- REBUILT: Professional Command Line Arguments ---
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Tallo Gallery Server")
-    parser.add_argument('-p', '--port', type=int, default=5001, help="Port to run the server on")
-    parser.add_argument('--host', type=str, default='127.0.0.1', help="Host IP to bind to (e.g., 0.0.0.0 for mobile testing)")
+    parser.add_argument('-p', '--port', type=int, default=7000, help="Port to run the server on")
+    parser.add_argument('--host', type=str, default='127.0.0.1', help="Host IP to bind to")
+    parser.add_argument('--readonly', action='store_true', help="Disable uploads and tagging")
     
     args = parser.parse_args()
-    run(host=args.host, port=args.port)
+    run(host=args.host, port=args.port, readonly=args.readonly)
