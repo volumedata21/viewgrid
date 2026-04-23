@@ -1,0 +1,16 @@
+services:
+  tallo:
+    build: .
+    container_name: tallo
+    ports:
+      - "7000:7000"
+    volumes:
+      - ./media:/app/media
+      - ./data:/app/data
+    restart: unless-stopped
+
+    # Mode 1: Admin Mode (Full Access - Uploads and Tagging Enabled)
+    command: ["python", "app.py", "--host", "0.0.0.0", "--port", "5001"]
+
+    # Mode 2: Read-Only Mode (Uploads and Tagging Disabled)
+    # command: ["python", "app.py", "--host", "0.0.0.0", "--port", "5001", "--readonly"]
