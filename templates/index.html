@@ -17,7 +17,12 @@
   </head>
   <body>
     <nav class="v-nav">
-      <h1 id="resetLogo" class="v-logo">TALLO</h1>
+      <img
+        id="resetLogo"
+        class="v-logo-image"
+        src="/static/logo.gif"
+        alt="Gallery"
+      />
 
       <div class="nav-controls">
         <div class="custom-select-wrapper" id="boardSelectWrapper">
@@ -162,6 +167,27 @@
     <div id="autocompleteDropdown" class="autocomplete-glass"></div>
 
     <div id="lightbox" class="lightbox-overlay">
+      <button
+        id="lightboxContextBtn"
+        class="icon-btn lightbox-context-btn"
+        aria-label="Show in Timeline"
+        title="Show in Timeline"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </button>
+
       <button
         id="lightboxClose"
         class="icon-btn lightbox-close"
