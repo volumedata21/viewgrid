@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const lightbox = document.getElementById("lightbox");
   const lightboxClose = document.getElementById("lightboxClose");
+  const lightboxContextBtn = document.getElementById("lightboxContextBtn");
   const lightboxContent = document.getElementById("lightboxContent");
   const lightboxTags = document.getElementById("lightboxTags");
 
@@ -36,6 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let isRenderingChunk = false;
   let currentRenderId = 0;
   let currentCols = getColumnCount();
+
+  let targetImageToScrollTo = null;
 
   let searchDebounceTimer;
 
@@ -60,6 +63,54 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentLightboxIndex = -1;
   let isShuffled = false;
   let currentBoard = "All";
+  let activeCloudTag = null;
+
+  // ==========================================================================
+  // TOAST MANAGER
+  // ==========================================================================
+  const Toast = {
+    container: null,
+    init() {
+      this.container = document.createElement("div");
+      this.container.className = "toast-container";
+      document.body.appendChild(this.container);
+    },
+    show(message, onUndo = null) {
+      if (!this.container) this.init();
+
+      const toast = document.createElement("div");
+      toast.className = "v-toast";
+
+      const text = document.createElement("span");
+      text.textContent = message;
+      toast.appendChild(text);
+
+      let timeoutId;
+
+      if (onUndo) {
+        const undoBtn = document.createElement("button");
+        undoBtn.className = "toast-undo-btn";
+        undoBtn.textContent = "Undo";
+        undoBtn.addEventListener("click", () => {
+          clearTimeout(timeoutId);
+          toast.classList.add("hiding");
+          setTimeout(() => toast.remove(), 300);
+          onUndo(); // Fire the function to restore the tag!
+        });
+        toast.appendChild(undoBtn);
+      }
+
+      this.container.appendChild(toast);
+
+      // Auto-hide after 4 seconds
+      timeoutId = setTimeout(() => {
+        if (document.body.contains(toast)) {
+          toast.classList.add("hiding");
+          setTimeout(() => toast.remove(), 300);
+        }
+      }, 4000);
+    },
+  };
 
   const videoObserver = new IntersectionObserver(
     (entries) => {
@@ -102,7 +153,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return ["All", ...uniqueBoards];
   }
 
-  // --- NEW: Helper function to recursively grab images from subfolders ---
   function getActiveBoardImages() {
     if (currentBoard === "All") return allImages;
     return allImages.filter(
@@ -170,7 +220,6 @@ document.addEventListener("DOMContentLoaded", () => {
       isShuffled = false;
       shuffleBtn.classList.remove("active-mode");
       updateGlobalTags();
-      // Replace hard match with recursive match
       renderGallery(getActiveBoardImages());
     }
   }
@@ -229,14 +278,12 @@ document.addEventListener("DOMContentLoaded", () => {
         opt.classList.add("all-boards-opt");
         if (currentBoard === "All") opt.classList.add("is-selected");
       } else {
-        // --- NEW: Visual Indentation Logic for Subfolders ---
         const parts = b.split("/");
         const depth = parts.length - 1;
-        const displayName = parts[parts.length - 1]; // Only show the active subfolder name
+        const displayName = parts[parts.length - 1];
 
         if (depth > 0) {
           opt.innerHTML = `<span style="opacity: 0.4; font-size: 0.9em; margin-right: 6px;">↳</span>${displayName}`;
-          // Multiply indent spacing by depth level
           opt.style.paddingLeft = `calc(1rem + ${depth * 18}px)`;
         } else {
           opt.textContent = displayName;
@@ -313,7 +360,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let freq = {};
     let untaggedCount = 0;
 
-    // Replace hard match with recursive match
     let activeBoardImages = getActiveBoardImages();
 
     activeBoardImages.forEach((img) => {
@@ -342,12 +388,25 @@ document.addEventListener("DOMContentLoaded", () => {
     sortedTags.slice(0, 10).forEach((tag) => {
       const span = document.createElement("span");
       span.className = "cloud-tag";
+
+      if (tag === activeCloudTag) {
+        span.classList.add("active");
+      }
+
       span.textContent = tag;
       span.addEventListener("click", () => {
         if (isSelectMode && selectedImages.size > 0) {
           applyBatchTag(tag);
         } else {
-          searchInput.value = tag;
+          if (activeCloudTag === tag) {
+            activeCloudTag = null;
+            searchInput.value = "";
+          } else {
+            activeCloudTag = tag;
+            searchInput.value = tag;
+          }
+
+          updateGlobalTags();
           applyFiltersAndRender();
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
@@ -358,10 +417,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if (untaggedCount > 0) {
       const untaggedSpan = document.createElement("span");
       untaggedSpan.className = "cloud-tag system-tag";
+
+      if (activeCloudTag === "is:untagged") {
+        untaggedSpan.classList.add("active");
+      }
+
       untaggedSpan.textContent = `∅ Untagged (${untaggedCount})`;
       untaggedSpan.addEventListener("click", () => {
         if (isSelectMode) return;
-        searchInput.value = "is:untagged";
+
+        if (activeCloudTag === "is:untagged") {
+          activeCloudTag = null;
+          searchInput.value = "";
+        } else {
+          activeCloudTag = "is:untagged";
+          searchInput.value = "is:untagged";
+        }
+
+        updateGlobalTags();
         applyFiltersAndRender();
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
@@ -411,10 +484,26 @@ document.addEventListener("DOMContentLoaded", () => {
     if (itemsRenderedThisPage >= totalItemsForThisPage) return;
 
     isRenderingChunk = true;
-    const targetCount = Math.min(
-      itemsRenderedThisPage + getChunkSize(),
-      totalItemsForThisPage
-    );
+
+    // --- NEW: Fast-forward chunk limit if we are hunting for a specific image ---
+    let chunkLimit = itemsRenderedThisPage + getChunkSize();
+
+    if (targetImageToScrollTo) {
+      // Find exactly where our target is on this specific page
+      const localTargetIndex = currentRenderList
+        .slice(pageStartIndex, pageStartIndex + totalItemsForThisPage)
+        .findIndex((img) => img.filename === targetImageToScrollTo);
+
+      if (
+        localTargetIndex !== -1 &&
+        localTargetIndex >= itemsRenderedThisPage
+      ) {
+        // Force the chunk limit to render exactly up to our target image in one burst!
+        chunkLimit = localTargetIndex + 1;
+      }
+    }
+
+    const targetCount = Math.min(chunkLimit, totalItemsForThisPage);
 
     function placeNextCard() {
       if (renderId !== currentRenderId) return;
@@ -580,6 +669,21 @@ document.addEventListener("DOMContentLoaded", () => {
         masonryColumns[shortestIndex].appendChild(card);
 
         itemsRenderedThisPage++;
+
+        // --- NEW: If this is the card we are hunting for, scroll to it and highlight! ---
+        if (targetImageToScrollTo === imgData.filename) {
+          targetImageToScrollTo = null; // Clear it so it only fires once
+          setTimeout(() => {
+            card.scrollIntoView({ behavior: "smooth", block: "center" });
+            card.style.transition = "box-shadow 0.5s ease";
+            card.style.boxShadow = "0 0 0 6px var(--select-color)";
+            setTimeout(() => {
+              card.style.boxShadow = "0 0 24px rgba(10, 132, 255, 0.3)";
+              setTimeout(() => (card.style.boxShadow = "none"), 1000);
+            }, 1500);
+          }, 100); // Tiny 100ms delay to ensure the browser has finished painting it
+        }
+
         placeNextCard();
       };
 
@@ -679,12 +783,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const del = document.createElement("span");
     del.className = "tag-del";
     del.textContent = "×";
+
+    // --- THIS IS THE UPDATED WIRED-UP LOGIC! ---
     del.addEventListener("click", (e) => {
-      e.stopPropagation();
-      imgData.tags = imgData.tags.filter((t) => t !== tagText);
+      e.stopPropagation(); // Stops the image from expanding
+
+      const removedTag = tagText;
+
+      // 1. Delete the tag instantly from UI and database
+      imgData.tags = imgData.tags.filter((t) => t !== removedTag);
       tagsListEl.removeChild(tag);
       saveTags(imgData);
       updateGlobalTags();
+
+      // 2. Summon the Toast!
+      Toast.show(`Removed tag: ${removedTag}`, () => {
+        // 3. THIS RUNS IF THEY CLICK UNDO!
+        // Put the tag back into the local data
+        imgData.tags.push(removedTag);
+
+        // Save it back to the database
+        saveTags(imgData);
+
+        // Recreate the visual tag element and pop it back on screen
+        tagsListEl.appendChild(
+          createTagElement(removedTag, imgData, tagsListEl)
+        );
+
+        // Update the global cloud count
+        updateGlobalTags();
+      });
     });
 
     tag.appendChild(text);
@@ -717,7 +845,6 @@ document.addEventListener("DOMContentLoaded", () => {
   async function applyBatchTag(tagText) {
     let promises = [];
 
-    // Replace hard match with recursive match
     let activeBoardImages = getActiveBoardImages();
 
     activeBoardImages.forEach((img) => {
@@ -924,7 +1051,6 @@ document.addEventListener("DOMContentLoaded", () => {
     isShuffled = false;
     shuffleBtn.classList.remove("active-mode");
 
-    // Replace hard match with recursive match
     let baseArray = getActiveBoardImages();
 
     if (!query) {
@@ -1004,7 +1130,6 @@ document.addEventListener("DOMContentLoaded", () => {
     lastSelectedIndex = null;
     currentPage = 1;
 
-    // Replace hard match with recursive match
     let targetArray = getActiveBoardImages();
 
     if (query === "is:untagged") {
@@ -1125,6 +1250,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
   lightboxClose.addEventListener("click", closeLightbox);
 
+  // ==========================================================================
+  // JUMP TO TIMELINE LOGIC
+  // ==========================================================================
+  lightboxContextBtn.addEventListener("click", () => {
+    const targetImage = currentRenderList[currentLightboxIndex];
+    if (!targetImage) return;
+
+    closeLightbox();
+
+    isShuffled = false;
+    shuffleBtn.classList.remove("active-mode");
+    searchInput.value = "";
+    activeCloudTag = null;
+    searchWrapper.classList.remove("is-active");
+    updateGlobalTags();
+
+    const baseArray = getActiveBoardImages();
+    const chronoIndex = baseArray.findIndex(
+      (img) => img.filename === targetImage.filename
+    );
+
+    if (chronoIndex !== -1) {
+      // 1. Set the target image BEFORE we tell the gallery to render
+      targetImageToScrollTo = targetImage.filename;
+
+      // 2. Calculate the page and render it. The gallery engine will now take over!
+      currentPage = Math.floor(chronoIndex / getItemsPerPage()) + 1;
+      renderGallery(baseArray, true);
+    }
+  });
+
   lightbox.addEventListener("click", (e) => {
     if (e.target === lightbox || e.target === lightboxTags) closeLightbox();
   });
@@ -1235,15 +1391,12 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchGallery();
 
   // --- NEW: Smart Idle/Sleep Manager ---
-  // Browsers prevent Mac sleep when videos are playing.
-  // This pauses all media if you step away for 5 minutes.
   let idleTimer;
-  const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
   function wakeUp() {
     clearTimeout(idleTimer);
 
-    // If we are waking up, check which videos are currently on screen and play them
     document.querySelectorAll("#gallery video").forEach((vid) => {
       const rect = vid.getBoundingClientRect();
       const isVisible = rect.top < window.innerHeight && rect.bottom >= 0;
@@ -1252,17 +1405,15 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Start the countdown to sleep
     idleTimer = setTimeout(() => {
       console.log("Tallo is idle: Pausing videos to allow system sleep.");
       document.querySelectorAll("video").forEach((vid) => vid.pause());
     }, IDLE_TIMEOUT_MS);
   }
 
-  // Listen for any human interaction to reset the timer
   ["mousemove", "scroll", "keydown", "click", "touchstart"].forEach((evt) => {
     window.addEventListener(evt, wakeUp, { passive: true });
   });
 
-  wakeUp(); // Start the timer on initial load
+  wakeUp();
 });
