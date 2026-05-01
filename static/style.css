@@ -1,3 +1,6 @@
+/* ==========================================================================
+   1. VARIABLES & BASE SETUP
+   ========================================================================== */
 :root {
   --bg-color: #000000;
   --surface-color: rgba(20, 20, 20, 0.6);
@@ -31,10 +34,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ==========================================================================
-   NAVIGATION & SEARCH
-   ========================================================================== */
+/* Base selection states */
+body.select-mode-active {
+  user-select: none;
+  -webkit-user-select: none;
+}
+body.select-mode-active .v-input {
+  user-select: text;
+  -webkit-user-select: text;
+}
+body.lightbox-open {
+  overflow: hidden;
+}
 
+/* ==========================================================================
+       2. NAVIGATION BAR & CONTROLS
+       ========================================================================== */
 .v-nav {
   position: sticky;
   top: 24px;
@@ -52,14 +67,31 @@ body {
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s ease;
 }
 
-.nav-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+/* Hide Nav when Lightbox opens */
+body.lightbox-open .v-nav {
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
 }
 
+.v-logo-image {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: block;
+}
+
+.nav-controls,
 .nav-filters {
   display: flex;
   align-items: center;
@@ -99,6 +131,7 @@ body {
   box-shadow: 0 0 15px rgba(10, 132, 255, 0.5);
 }
 
+/* --- Search Input --- */
 .search-wrapper {
   position: relative;
   display: flex;
@@ -173,9 +206,8 @@ body {
 }
 
 /* ==========================================================================
-   DROPDOWNS & AUTOCOMPLETE
-   ========================================================================== */
-
+       3. SMART TREES & AUTOCOMPLETE DROPDOWNS
+       ========================================================================== */
 .custom-select-wrapper {
   position: relative;
   user-select: none;
@@ -186,24 +218,23 @@ body {
   top: calc(100% + 12px);
   right: 0;
   left: auto;
-  min-width: 150px;
+  min-width: 220px;
+  max-width: 300px;
   background: rgba(15, 15, 15, 0.85);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
-  padding: 6px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
   opacity: 0;
   pointer-events: none;
   transform: translateY(-10px);
   transition: all 0.2s ease;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   z-index: 200;
-  max-height: 50vh;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .custom-select-options.is-open {
@@ -212,42 +243,123 @@ body {
   transform: translateY(0);
 }
 
-.custom-select-options::-webkit-scrollbar {
+/* --- Sticky Board Filter --- */
+.board-search-container {
+  position: sticky;
+  top: 0;
+  background: rgba(15, 15, 15, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px;
+  z-index: 2;
+}
+
+#boardFilterInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  padding: 6px 12px 6px 30px;
+  border-radius: 6px;
+  outline: none;
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+#boardFilterInput:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--select-color);
+}
+
+/* --- Smart Tree Layout --- */
+.board-tree-container {
+  overflow-y: auto;
+  max-height: 50vh;
+  padding: 6px;
+}
+
+.board-tree-container::-webkit-scrollbar {
   width: 6px;
 }
-.custom-select-options::-webkit-scrollbar-track {
+.board-tree-container::-webkit-scrollbar-track {
   background: transparent;
   margin: 6px 0;
 }
-.custom-select-options::-webkit-scrollbar-thumb {
+.board-tree-container::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 10px;
 }
-.custom-select-options::-webkit-scrollbar-thumb:hover {
+.board-tree-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.custom-option {
-  padding: 8px 12px;
+.tree-item {
+  display: block;
+}
+
+.tree-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--text-secondary);
   transition: all 0.2s ease;
+  margin-bottom: 2px;
 }
 
-.custom-option:hover,
-.custom-option.is-selected {
+.tree-header:hover,
+.tree-header.is-selected {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
 }
 
-.custom-option.all-boards-opt {
+.tree-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  margin-left: -4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.tree-chevron:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+.tree-chevron svg {
+  transition: transform 0.2s ease;
+}
+
+.tree-chevron.expanded svg {
+  transform: rotate(90deg);
+}
+
+.tree-chevron-spacer {
+  width: 16px;
+  display: inline-block;
+}
+
+.tree-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-name.all-boards-opt {
   font-size: 0.75rem !important;
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* --- Autocomplete Tags Dropdown --- */
 .autocomplete-glass {
   position: absolute;
   background: rgba(15, 15, 15, 0.85);
@@ -295,9 +407,8 @@ body {
 }
 
 /* ==========================================================================
-   GLOBAL TAG CLOUD
-   ========================================================================== */
-
+       4. GLOBAL TAG CLOUD
+       ========================================================================== */
 .global-tag-cloud-wrapper {
   position: sticky;
   top: 95px;
@@ -344,6 +455,14 @@ body {
   transform: translateY(2px);
 }
 
+.cloud-tag.active {
+  background: var(--select-color);
+  color: white;
+  border-color: var(--select-color);
+  box-shadow: 0 0px 15px rgba(10, 132, 255, 0.4);
+  transform: translateY(2px);
+}
+
 .cloud-tag.system-tag {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.1);
@@ -357,10 +476,34 @@ body {
   color: var(--text-primary);
 }
 
-/* ==========================================================================
-   MASONRY GALLERY & CARDS
-   ========================================================================== */
+.cloud-tag.system-tag.active {
+  background: var(--select-color);
+  color: white;
+  border-color: var(--select-color);
+  border-style: solid;
+}
 
+/* --- NEW: Special Tag Cloud pill for Favorites (Mint & SVG aligned) --- */
+.cloud-tag.favorite-tag {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.1);
+  display: flex; /* Ensures the SVG and text align perfectly */
+  align-items: center;
+}
+.cloud-tag.favorite-tag:hover {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: rgba(52, 211, 153, 0.5);
+}
+.cloud-tag.favorite-tag.active {
+  background: #34d399;
+  color: #000000; /* Dark text for high contrast on active */
+  border-color: #34d399;
+}
+
+/* ==========================================================================
+       5. MASONRY GALLERY & CARDS
+       ========================================================================== */
 .masonry-grid {
   display: flex;
   gap: 16px;
@@ -412,6 +555,7 @@ body {
   transition: opacity 0.3s ease;
 }
 
+/* --- Card Utilities (Expand button, Fav button & Tags) --- */
 .card-expand-btn {
   position: absolute;
   top: 12px;
@@ -441,6 +585,48 @@ body {
 .glass-card.is-selected .card-expand-btn,
 .glass-card.show-mobile-overlay .card-expand-btn {
   opacity: 1;
+}
+
+/* --- NEW: Card Favorite Button --- */
+.card-favorite-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.card-favorite-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+/* Make it visible on hover OR if it is actively favorited */
+.glass-card:hover .card-favorite-btn,
+.glass-card.is-selected .card-favorite-btn,
+.glass-card.show-mobile-overlay .card-favorite-btn,
+.card-favorite-btn.is-active {
+  opacity: 1;
+}
+
+/* Filled Mint Heart state */
+.card-favorite-btn.is-active svg,
+#lightboxFavoriteBtn.is-active svg {
+  fill: #34d399;
+  stroke: #34d399;
 }
 
 .tag-container {
@@ -556,20 +742,198 @@ body {
   border-color: rgba(255, 255, 255, 0.4);
 }
 
-body.select-mode-active {
-  user-select: none;
-  -webkit-user-select: none;
+/* ==========================================================================
+       6. FULLSCREEN LIGHTBOX
+       ========================================================================== */
+.lightbox-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
-body.select-mode-active .v-input {
-  user-select: text;
-  -webkit-user-select: text;
+.lightbox-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lightbox-content {
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform: scale(0.95);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.lightbox-overlay.is-active .lightbox-content {
+  transform: scale(1);
+}
+
+.lightbox-content img,
+.lightbox-content video {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.lightbox-tags {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 80vw;
+}
+
+/* --- NEW: Distraction-Free (Chromeless) Viewing --- */
+.lightbox-overlay.hide-ui .lightbox-actions,
+.lightbox-overlay.hide-ui .lightbox-desc-wrapper,
+.lightbox-overlay.hide-ui .lightbox-tags {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Ensure they all fade smoothly */
+.lightbox-actions,
+.lightbox-desc-wrapper,
+.lightbox-tags {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* --- Floating Actions UI --- */
+.lightbox-actions {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 10001;
+}
+
+.lightbox-btn {
+  width: 48px;
+  height: 48px;
+  background: rgba(15, 15, 15, 0.6);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  color: white;
+}
+
+.lightbox-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-btn.btn-danger:hover {
+  background: rgba(255, 69, 58, 0.15);
+  border-color: rgba(255, 69, 58, 0.4);
+  color: #ff453a;
+  box-shadow: 0 0 15px rgba(255, 69, 58, 0.3);
+}
+
+/* Danger Confirm State */
+.lightbox-btn.confirm-delete {
+  background: rgba(255, 69, 58, 0.8) !important;
+  color: white !important;
+  border-color: #ff453a !important;
+  box-shadow: 0 0 20px rgba(255, 69, 58, 0.6) !important;
+  transform: scale(1.1);
+}
+
+/* --- Edit Mode & Ignore Button --- */
+#lightboxIgnoreBtn {
+  display: none !important;
+}
+
+.lightbox-overlay.is-editing #lightboxIgnoreBtn {
+  display: inline-flex !important;
+  color: #ff9f0a;
+}
+
+.lightbox-overlay.is-editing #lightboxIgnoreBtn:hover {
+  background: rgba(255, 159, 10, 0.15);
+  border-color: rgba(255, 159, 10, 0.4);
+  box-shadow: 0 0 15px rgba(255, 159, 10, 0.3);
+}
+
+.lightbox-overlay.is-editing #lightboxIgnoreBtn.confirm-delete {
+  background: rgba(255, 159, 10, 0.8) !important;
+  color: white !important;
+  border-color: #ff9f0a !important;
+  box-shadow: 0 0 20px rgba(255, 159, 10, 0.6) !important;
+  transform: scale(1.1);
+}
+
+/* Description text container */
+.lightbox-desc-wrapper {
+  margin-top: 16px;
+  width: 90vw;
+  max-width: 600px;
+  background: rgba(15, 15, 15, 0.6);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 12px 20px;
+  z-index: 2001;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.lightbox-desc-text {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  letter-spacing: 0.01em;
+}
+
+.lightbox-desc-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  resize: none;
+  padding: 10px;
+  border-radius: 8px;
+  display: none;
+  text-align: center;
+}
+
+.lightbox-desc-input:focus {
+  border-color: var(--select-color);
+  outline: none;
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.2);
 }
 
 /* ==========================================================================
-   TOAST NOTIFICATIONS
-   ========================================================================== */
-
+       7. TOASTS & UPLOADER
+       ========================================================================== */
 .toast-container {
   position: fixed;
   bottom: 40px;
@@ -579,7 +943,7 @@ body.select-mode-active .v-input {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  pointer-events: none; /* Lets you click through the invisible container */
+  pointer-events: none;
 }
 
 .v-toast {
@@ -596,9 +960,7 @@ body.select-mode-active .v-input {
   gap: 16px;
   font-size: 0.85rem;
   font-weight: 500;
-  pointer-events: auto; /* Makes the toast itself clickable */
-
-  /* Bouncy pop-in animation */
+  pointer-events: auto;
   animation: toastSlideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   opacity: 0;
   transform: translateY(20px) scale(0.9);
@@ -632,37 +994,11 @@ body.select-mode-active .v-input {
     transform: translateY(0) scale(1);
   }
 }
-
 @keyframes toastFadeOut {
   to {
     opacity: 0;
     transform: translateY(-10px) scale(0.95);
   }
-}
-
-/* Mobile: Push it up so it doesn't overlap your new bottom Nav Pill */
-@media (max-width: 768px) {
-  .toast-container {
-    bottom: 100px;
-  }
-}
-
-/* ==========================================================================
-   GLOBAL SCROLLBARS & UI COMPONENTS
-   ========================================================================== */
-
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 .upload-overlay {
@@ -687,18 +1023,29 @@ body.select-mode-active .v-input {
 .upload-overlay.active {
   opacity: 1;
 }
-
 .upload-overlay h2 {
   color: white;
   font-size: 2rem;
-  pointer-events: none;
   font-weight: 600;
   letter-spacing: 0.1em;
 }
 
 /* ==========================================================================
-   PAGINATION
-   ========================================================================== */
+       8. GLOBALS (SCROLLBARS & PAGINATION)
+       ========================================================================== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
 
 .pagination-container {
   display: flex;
@@ -744,121 +1091,162 @@ body.select-mode-active .v-input {
   transform: translateY(-2px);
 }
 
-/* ==========================================================================
-   LIGHTBOX OVERLAY
-   ========================================================================== */
-
-.lightbox-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.lightbox-overlay.is-active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.lightbox-close {
-  position: absolute;
-  top: 30px;
-  right: 30px;
-  width: 48px;
-  height: 48px;
-  z-index: 2001;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.lightbox-content {
-  max-width: 90vw;
-  max-height: 85vh;
+/* --- PAGINATION UPGRADES --- */
+.pagination-container {
   display: flex;
   justify-content: center;
-  align-items: center;
-  transform: scale(0.95);
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.lightbox-overlay.is-active .lightbox-content {
-  transform: scale(1);
-}
-
-.lightbox-content img,
-.lightbox-content video {
-  max-width: 100%;
-  max-height: 85vh;
-  object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-}
-
-.lightbox-tags {
-  margin-top: 24px;
-  display: flex;
   gap: 8px;
+  width: 100%;
+  padding: 40px 24px 60px 24px; /* Default bottom padding */
+  grid-column: 1 / -1;
   flex-wrap: wrap;
+}
+
+/* --- The Ultra-Compact Top Pagination (Ghost Bar) --- */
+.pagination-container.top-pagination {
+  padding: 0px 24px 10px 24px;
+  margin-top: -25px;
+  opacity: 0.25; /* Fades even deeper into the background */
+  transition: opacity 0.3s ease;
+  gap: 2px; /* Extremely tight spacing */
+}
+
+/* Lights up when the user needs it */
+.pagination-container.top-pagination:hover {
+  opacity: 1;
+}
+
+/* Micro-buttons */
+.top-pagination .page-num-btn {
+  height: 22px;
+  min-width: 22px;
+  padding: 0 6px;
+  font-size: 0.65rem; /* Very small text */
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.top-pagination .page-num-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.top-pagination .page-num-btn.active {
+  background: transparent;
+  color: var(--select-color);
+  border-color: var(--select-color);
+  box-shadow: none;
+}
+
+.top-pagination .page-ellipsis {
+  font-size: 0.65rem;
+  padding: 0 1px;
+}
+
+.page-num-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px; /* Allows numbers like "300" to fit nicely */
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  max-width: 80vw;
+  font-size: 0.9rem;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: all 0.2s ease;
 }
 
-body.lightbox-open {
-  overflow: hidden;
+.page-num-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
 }
 
-.lightbox-close {
-  position: absolute;
-  top: 30px;
-  right: 30px;
-  width: 48px;
-  height: 48px;
-  z-index: 2001;
+.page-num-btn.active {
+  background: var(--select-color);
+  color: white;
+  border-color: var(--select-color);
+  box-shadow: 0 0 15px rgba(10, 132, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* The three dots */
+.page-ellipsis {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 4px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  pointer-events: none;
+}
+
+/* --- Page Jump Input --- */
+.page-jump-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  height: 40px;
+  width: 60px;
+  border-radius: 8px;
+  padding: 0 8px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  text-align: center;
+  outline: none;
+  transition: all 0.2s ease;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  margin-left: 4px;
+}
+
+.page-jump-input:focus {
+  border-color: var(--select-color);
   background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.2);
 }
 
-/* --- NEW: Timeline Button Styling --- */
-.lightbox-context-btn {
-  position: absolute;
-  top: 30px;
-  left: 30px;
-  width: 48px;
-  height: 48px;
-  z-index: 2001;
-  background: rgba(255, 255, 255, 0.1);
+.page-jump-input::placeholder {
+  color: var(--text-secondary);
 }
 
-/* Mobile Adjustments */
-@media (max-width: 768px) {
-  .lightbox-close {
-    top: 16px;
-    right: 16px;
-    width: 40px;
-    height: 40px;
-  }
-  .lightbox-context-btn {
-    top: 16px;
-    left: 16px;
-    width: 40px;
-    height: 40px;
-  }
+/* Hide default number arrows */
+.page-jump-input::-webkit-outer-spin-button,
+.page-jump-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.page-jump-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Ghost Bar Micro-Input */
+.top-pagination .page-jump-input {
+  height: 22px;
+  width: 45px;
+  padding: 0 4px;
+  font-size: 0.65rem;
+  border-radius: 4px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.top-pagination .page-jump-input:focus {
+  border-color: var(--select-color);
 }
 
 /* ==========================================================================
-   MOBILE RESPONSIVENESS
-   ========================================================================== */
-
+       9. MOBILE RESPONSIVENESS OVERRIDES
+       ========================================================================== */
 .mobile-only {
   display: none;
 }
@@ -882,10 +1270,11 @@ body.lightbox-open {
     display: flex;
   }
 
+  /* --- Mobile Navigation --- */
   .v-nav {
     position: fixed;
-    top: auto;
-    bottom: 24px;
+    top: 16px;
+    bottom: auto;
     left: 16px;
     right: 16px;
     width: auto;
@@ -901,16 +1290,9 @@ body.lightbox-open {
     z-index: 9999;
   }
 
-  .v-nav.keyboard-open {
-    bottom: auto;
-    top: 12px;
-  }
-
   .nav-controls {
-    display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    align-items: center;
     flex: 1;
     gap: 8px;
   }
@@ -930,36 +1312,35 @@ body.lightbox-open {
   .nav-filters.is-open {
     display: flex;
   }
-
   .search-wrapper {
     width: 100%;
   }
-
   .v-input,
   .v-input:focus {
     width: 100%;
   }
 
   .custom-select-options {
-    top: auto;
-    bottom: calc(100% + 8px);
-    transform: translateY(10px);
+    top: calc(100% + 12px);
+    bottom: auto;
+    transform: translateY(-10px);
   }
 
   .custom-select-options.is-open {
     transform: translateY(0);
   }
 
+  /* --- Mobile Global Tag Cloud --- */
   .global-tag-cloud-wrapper {
     position: sticky;
-    top: 0;
+    top: 85px;
+    margin-top: 85px;
     padding: 12px 0;
     background: rgba(5, 5, 5, 0.85);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border-bottom: 1px solid var(--glass-border);
     width: 100%;
-    margin: 0;
     z-index: 90;
   }
 
@@ -968,76 +1349,126 @@ body.lightbox-open {
     padding: 0 16px 15px 16px;
   }
 
+  /* --- Mobile Masonry Grid --- */
   .masonry-grid {
     padding: 0 12px 20px 12px;
     gap: 10px;
   }
-
   .masonry-column {
     gap: 10px;
   }
-
   .pagination-container {
-    padding-bottom: 120px;
+    padding-bottom: 60px;
   }
 
-  .tag-container {
-    opacity: 0;
+  /* --- FIX: Sticky Mobile Hover & UI Cutoff --- */
+  /* 1. Prevent the "stuck hover" bug by ignoring desktop hover rules on mobile */
+  .glass-card:not(.show-mobile-overlay):not(.is-selected) .tag-container,
+  .glass-card:not(.show-mobile-overlay):not(.is-selected) .card-expand-btn,
+  .glass-card:not(.show-mobile-overlay):not(.is-selected) .card-favorite-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
-  .glass-card.show-mobile-overlay .tag-container {
-    opacity: 1;
-    padding: 12px;
-    background: linear-gradient(
-      to top,
-      rgba(0, 0, 0, 0.95) 0%,
-      rgba(0, 0, 0, 0.2) 100%
-    );
+  /* 2. Force them to show cleanly only when JS toggles the class */
+  .glass-card.show-mobile-overlay .tag-container,
+  .glass-card.show-mobile-overlay .card-expand-btn,
+  .glass-card.show-mobile-overlay .card-favorite-btn {
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 
-  .lightbox-close {
+  /* 1. Hide delete button on mobile grid cards to prevent fat-fingering */
+  .glass-card .tag-del {
+    display: none !important;
+  }
+
+  /* --- Mobile Lightbox UX --- */
+  .lightbox-content {
+    padding-top: 60px;
+  }
+  .lightbox-content img,
+  .lightbox-content video {
+    max-height: 65vh;
+  }
+
+  /* Horizontal Actions layout for mobile */
+  .lightbox-actions {
+    position: fixed;
     top: 16px;
     right: 16px;
+    left: 16px;
+    gap: 8px; /* Slightly reduced gap to buy more space */
+    flex-direction: row;
+    justify-content: flex-end;
+    flex-wrap: wrap; /* Allows wrapping instead of pushing off screen */
+    z-index: 10002;
+  }
+
+  .lightbox-btn {
     width: 40px;
     height: 40px;
   }
 
-  .lightbox-tags {
-    max-width: 95vw;
+  /* --- NEW: Hide Timeline Button during Edit Mode --- */
+  /* This makes exact room for the new Ignore button with zero layout shift */
+  .lightbox-overlay.is-editing #lightboxContextBtn {
+    display: none !important;
   }
-}
 
-/* ==========================================================================
-   LOGO
-   ========================================================================== */
+  /* Reveal the Red Xs ONLY when the Lightbox is in Edit Mode! */
+  .lightbox-overlay.is-editing .lightbox-tags .tag-del {
+    display: inline-block !important;
+    opacity: 1 !important;
+    padding: 4px 8px;
+    margin-left: 8px;
+    background: rgba(255, 69, 58, 0.15);
+    border-radius: 4px;
+    color: #ff453a;
+  }
 
-/* --- REBUILT: Bulletproof Circular Image Logo --- */
-.v-logo-image {
-  width: 36px;
-  height: 36px;
-  /* Bulletproof min/max constraints prevent iOS from exploding the image size */
-  min-width: 36px;
-  min-height: 36px;
-  max-width: 36px;
-  max-height: 36px;
-  border-radius: 50%; /* Added back to ensure your GIF is cropped to a perfect circle */
-  cursor: pointer;
-  object-fit: cover;
-  flex-shrink: 0;
-  display: block; /* Strips out invisible inline text spacing */
-}
+  /* --- NEW: Fullscreen Edit Mode for Mobile --- */
+  .lightbox-overlay.is-editing {
+    justify-content: flex-start; /* Pushes content to the top */
+    align-items: stretch;
+    padding-top: 80px; /* Clears the fixed buttons */
+    padding-bottom: 40px;
+    overflow-y: auto; /* Enables scrolling for tags/description */
+    -webkit-overflow-scrolling: touch;
+  }
 
-.cloud-tag.active {
-  background: var(--select-color);
-  color: white;
-  border-color: var(--select-color);
-  box-shadow: 0 0px 15px rgba(10, 132, 255, 0.4);
-  transform: translateY(2px); /* Keeps it pressed down while active */
-}
+  /* Hide the media to reclaim all screen space */
+  .lightbox-overlay.is-editing .lightbox-content {
+    display: none !important;
+  }
 
-.cloud-tag.system-tag.active {
-  background: var(--select-color);
-  color: white;
-  border-color: var(--select-color);
-  border-style: solid;
+  /* Expand the description wrapper to full width */
+  .lightbox-overlay.is-editing .lightbox-desc-wrapper {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin-top: 0;
+    background: rgba(15, 15, 15, 0.95);
+    box-shadow: none;
+    flex-shrink: 0;
+  }
+
+  /* Give the text area plenty of typing space */
+  .lightbox-overlay.is-editing .lightbox-desc-input {
+    min-height: 120px;
+  }
+
+  /* Bring the tags up and align them neatly under the description */
+  .lightbox-overlay.is-editing .lightbox-tags {
+    max-width: 100%;
+    padding: 20px;
+    justify-content: flex-start;
+    flex-shrink: 0;
+  }
+
+  .toast-container {
+    bottom: 100px;
+  }
 }
