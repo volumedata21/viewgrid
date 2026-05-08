@@ -44,12 +44,13 @@ body.select-mode-active .v-input {
   -webkit-user-select: text;
 }
 body.lightbox-open {
-  overflow: hidden;
+  overflow: hidden !important;
+  overscroll-behavior: none;
 }
 
 /* ==========================================================================
-       2. NAVIGATION BAR & CONTROLS
-       ========================================================================== */
+         2. NAVIGATION BAR & CONTROLS
+         ========================================================================== */
 .v-nav {
   position: sticky;
   top: 24px;
@@ -206,8 +207,8 @@ body.lightbox-open .v-nav {
 }
 
 /* ==========================================================================
-       3. SMART TREES & AUTOCOMPLETE DROPDOWNS
-       ========================================================================== */
+         3. SMART TREES & AUTOCOMPLETE DROPDOWNS
+         ========================================================================== */
 .custom-select-wrapper {
   position: relative;
   user-select: none;
@@ -243,8 +244,8 @@ body.lightbox-open .v-nav {
   transform: translateY(0);
 }
 
-/* --- Sticky Board Filter --- */
-.board-search-container {
+/* --- Sticky Folder Filter --- */
+.folder-search-container {
   position: sticky;
   top: 0;
   background: rgba(15, 15, 15, 0.95);
@@ -253,7 +254,7 @@ body.lightbox-open .v-nav {
   z-index: 2;
 }
 
-#boardFilterInput {
+#folderFilterInput {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid transparent;
@@ -267,30 +268,30 @@ body.lightbox-open .v-nav {
   box-sizing: border-box;
 }
 
-#boardFilterInput:focus {
+#folderFilterInput:focus {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--select-color);
 }
 
 /* --- Smart Tree Layout --- */
-.board-tree-container {
+.folder-tree-container {
   overflow-y: auto;
   max-height: 50vh;
   padding: 6px;
 }
 
-.board-tree-container::-webkit-scrollbar {
+.folder-tree-container::-webkit-scrollbar {
   width: 6px;
 }
-.board-tree-container::-webkit-scrollbar-track {
+.folder-tree-container::-webkit-scrollbar-track {
   background: transparent;
   margin: 6px 0;
 }
-.board-tree-container::-webkit-scrollbar-thumb {
+.folder-tree-container::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 10px;
 }
-.board-tree-container::-webkit-scrollbar-thumb:hover {
+.folder-tree-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
@@ -354,9 +355,19 @@ body.lightbox-open .v-nav {
   text-overflow: ellipsis;
 }
 
-.tree-name.all-boards-opt {
+.tree-name.all-folders-opt {
   font-size: 0.75rem !important;
   color: rgba(255, 255, 255, 0.7);
+}
+
+/* Make View All link stylish */
+.view-all-boards {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 6px;
+  padding-bottom: 8px;
+}
+.view-all-boards:hover {
+  background: rgba(10, 132, 255, 0.15) !important;
 }
 
 /* --- Autocomplete Tags Dropdown --- */
@@ -407,8 +418,8 @@ body.lightbox-open .v-nav {
 }
 
 /* ==========================================================================
-       4. GLOBAL TAG CLOUD
-       ========================================================================== */
+         4. GLOBAL TAG CLOUD
+         ========================================================================== */
 .global-tag-cloud-wrapper {
   position: sticky;
   top: 95px;
@@ -433,6 +444,9 @@ body.lightbox-open .v-nav {
 }
 
 .cloud-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(15, 15, 15, 0.4);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -483,12 +497,11 @@ body.lightbox-open .v-nav {
   border-style: solid;
 }
 
-/* --- NEW: Special Tag Cloud pill for Favorites (Mint & SVG aligned) --- */
 .cloud-tag.favorite-tag {
   color: #34d399;
   border-color: rgba(52, 211, 153, 0.3);
   background: rgba(52, 211, 153, 0.1);
-  display: flex; /* Ensures the SVG and text align perfectly */
+  display: flex;
   align-items: center;
 }
 .cloud-tag.favorite-tag:hover {
@@ -497,13 +510,13 @@ body.lightbox-open .v-nav {
 }
 .cloud-tag.favorite-tag.active {
   background: #34d399;
-  color: #000000; /* Dark text for high contrast on active */
+  color: #000000;
   border-color: #34d399;
 }
 
 /* ==========================================================================
-       5. MASONRY GALLERY & CARDS
-       ========================================================================== */
+         5. MASONRY GALLERY & CARDS
+         ========================================================================== */
 .masonry-grid {
   display: flex;
   gap: 16px;
@@ -555,7 +568,6 @@ body.lightbox-open .v-nav {
   transition: opacity 0.3s ease;
 }
 
-/* --- Card Utilities (Expand button, Fav button & Tags) --- */
 .card-expand-btn {
   position: absolute;
   top: 12px;
@@ -587,7 +599,6 @@ body.lightbox-open .v-nav {
   opacity: 1;
 }
 
-/* --- NEW: Card Favorite Button --- */
 .card-favorite-btn {
   position: absolute;
   top: 12px;
@@ -614,7 +625,6 @@ body.lightbox-open .v-nav {
   transform: scale(1.05);
 }
 
-/* Make it visible on hover OR if it is actively favorited */
 .glass-card:hover .card-favorite-btn,
 .glass-card.is-selected .card-favorite-btn,
 .glass-card.show-mobile-overlay .card-favorite-btn,
@@ -622,7 +632,6 @@ body.lightbox-open .v-nav {
   opacity: 1;
 }
 
-/* Filled Mint Heart state */
 .card-favorite-btn.is-active svg,
 #lightboxFavoriteBtn.is-active svg {
   fill: #34d399;
@@ -742,9 +751,41 @@ body.lightbox-open .v-nav {
   border-color: rgba(255, 255, 255, 0.4);
 }
 
+/* --- Video Indicator Badge --- */
+.video-indicator {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  /* Green background, slightly more transparent than before (was 0.6) */
+  background: rgba(52, 211, 153, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* Matching subtle green border */
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: 6px;
+  /* Smaller dimensions */
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* White play triangle, slightly transparent */
+  color: rgba(255, 255, 255, 0.85);
+  z-index: 5;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Smoothly hide the badge when hovering so it doesn't block the video */
+.glass-card:hover .video-indicator,
+.board-card:hover .video-indicator {
+  opacity: 0;
+}
+
 /* ==========================================================================
-       6. FULLSCREEN LIGHTBOX
-       ========================================================================== */
+         6. FULLSCREEN LIGHTBOX
+         ========================================================================== */
 .lightbox-overlay {
   position: fixed;
   top: 0;
@@ -801,7 +842,6 @@ body.lightbox-open .v-nav {
   max-width: 80vw;
 }
 
-/* --- NEW: Distraction-Free (Chromeless) Viewing --- */
 .lightbox-overlay.hide-ui .lightbox-actions,
 .lightbox-overlay.hide-ui .lightbox-desc-wrapper,
 .lightbox-overlay.hide-ui .lightbox-tags {
@@ -809,14 +849,12 @@ body.lightbox-open .v-nav {
   pointer-events: none !important;
 }
 
-/* Ensure they all fade smoothly */
 .lightbox-actions,
 .lightbox-desc-wrapper,
 .lightbox-tags {
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-/* --- Floating Actions UI --- */
 .lightbox-actions {
   position: absolute;
   top: 30px;
@@ -852,7 +890,6 @@ body.lightbox-open .v-nav {
   box-shadow: 0 0 15px rgba(255, 69, 58, 0.3);
 }
 
-/* Danger Confirm State */
 .lightbox-btn.confirm-delete {
   background: rgba(255, 69, 58, 0.8) !important;
   color: white !important;
@@ -861,7 +898,6 @@ body.lightbox-open .v-nav {
   transform: scale(1.1);
 }
 
-/* --- Edit Mode & Ignore Button --- */
 #lightboxIgnoreBtn {
   display: none !important;
 }
@@ -885,7 +921,6 @@ body.lightbox-open .v-nav {
   transform: scale(1.1);
 }
 
-/* Description text container */
 .lightbox-desc-wrapper {
   margin-top: 16px;
   width: 90vw;
@@ -932,8 +967,8 @@ body.lightbox-open .v-nav {
 }
 
 /* ==========================================================================
-       7. TOASTS & UPLOADER
-       ========================================================================== */
+         7. TOASTS & UPLOADER
+         ========================================================================== */
 .toast-container {
   position: fixed;
   bottom: 40px;
@@ -1007,32 +1042,65 @@ body.lightbox-open .v-nav {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(10, 132, 255, 0.15);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   z-index: 100000;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
-  border: 4px dashed var(--select-color);
+  transition: opacity 0.3s ease;
+  border: none;
 }
 
 .upload-overlay.active {
   opacity: 1;
 }
+
+.upload-overlay::before {
+  content: "";
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  pointer-events: none;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.upload-overlay.active::before {
+  border-color: rgba(10, 132, 255, 0.4);
+  background: rgba(10, 132, 255, 0.02);
+}
+
 .upload-overlay h2 {
-  color: white;
-  font-size: 2rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  background: rgba(15, 15, 15, 0.85);
+  border: 1px solid var(--glass-border);
+  padding: 16px 32px;
+  border-radius: 100px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(10, 132, 255, 0.1);
+  transform: translateY(20px) scale(0.95);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  z-index: 2;
+}
+
+.upload-overlay.active h2 {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(10, 132, 255, 0.2);
 }
 
 /* ==========================================================================
-       8. GLOBALS (SCROLLBARS & PAGINATION)
-       ========================================================================== */
+         8. GLOBALS (SCROLLBARS & PAGINATION)
+         ========================================================================== */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -1091,37 +1159,23 @@ body.lightbox-open .v-nav {
   transform: translateY(-2px);
 }
 
-/* --- PAGINATION UPGRADES --- */
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 40px 24px 60px 24px; /* Default bottom padding */
-  grid-column: 1 / -1;
-  flex-wrap: wrap;
-}
-
-/* --- The Ultra-Compact Top Pagination (Ghost Bar) --- */
 .pagination-container.top-pagination {
   padding: 0px 24px 10px 24px;
   margin-top: -25px;
-  opacity: 0.25; /* Fades even deeper into the background */
+  opacity: 0.25;
   transition: opacity 0.3s ease;
-  gap: 2px; /* Extremely tight spacing */
+  gap: 2px;
 }
 
-/* Lights up when the user needs it */
 .pagination-container.top-pagination:hover {
   opacity: 1;
 }
 
-/* Micro-buttons */
 .top-pagination .page-num-btn {
   height: 22px;
   min-width: 22px;
   padding: 0 6px;
-  font-size: 0.65rem; /* Very small text */
+  font-size: 0.65rem;
   border-radius: 4px;
   background: transparent;
   border: 1px solid transparent;
@@ -1143,42 +1197,6 @@ body.lightbox-open .v-nav {
   padding: 0 1px;
 }
 
-.page-num-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
-  min-width: 40px;
-  height: 40px;
-  padding: 0 12px; /* Allows numbers like "300" to fit nicely */
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  font-family: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  transition: all 0.2s ease;
-}
-
-.page-num-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.page-num-btn.active {
-  background: var(--select-color);
-  color: white;
-  border-color: var(--select-color);
-  box-shadow: 0 0 15px rgba(10, 132, 255, 0.4);
-  transform: translateY(-2px);
-}
-
-/* The three dots */
 .page-ellipsis {
   color: var(--text-secondary);
   display: flex;
@@ -1190,7 +1208,6 @@ body.lightbox-open .v-nav {
   pointer-events: none;
 }
 
-/* --- Page Jump Input --- */
 .page-jump-input {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
@@ -1219,7 +1236,6 @@ body.lightbox-open .v-nav {
   color: var(--text-secondary);
 }
 
-/* Hide default number arrows */
 .page-jump-input::-webkit-outer-spin-button,
 .page-jump-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -1229,7 +1245,6 @@ body.lightbox-open .v-nav {
   -moz-appearance: textfield;
 }
 
-/* Ghost Bar Micro-Input */
 .top-pagination .page-jump-input {
   height: 22px;
   width: 45px;
@@ -1245,8 +1260,8 @@ body.lightbox-open .v-nav {
 }
 
 /* ==========================================================================
-       9. MOBILE RESPONSIVENESS OVERRIDES
-       ========================================================================== */
+         9. MOBILE RESPONSIVENESS OVERRIDES
+         ========================================================================== */
 .mobile-only {
   display: none;
 }
@@ -1270,7 +1285,6 @@ body.lightbox-open .v-nav {
     display: flex;
   }
 
-  /* --- Mobile Navigation --- */
   .v-nav {
     position: fixed;
     top: 16px;
@@ -1330,7 +1344,6 @@ body.lightbox-open .v-nav {
     transform: translateY(0);
   }
 
-  /* --- Mobile Global Tag Cloud --- */
   .global-tag-cloud-wrapper {
     position: sticky;
     top: 85px;
@@ -1349,7 +1362,6 @@ body.lightbox-open .v-nav {
     padding: 0 16px 15px 16px;
   }
 
-  /* --- Mobile Masonry Grid --- */
   .masonry-grid {
     padding: 0 12px 20px 12px;
     gap: 10px;
@@ -1361,8 +1373,6 @@ body.lightbox-open .v-nav {
     padding-bottom: 60px;
   }
 
-  /* --- FIX: Sticky Mobile Hover & UI Cutoff --- */
-  /* 1. Prevent the "stuck hover" bug by ignoring desktop hover rules on mobile */
   .glass-card:not(.show-mobile-overlay):not(.is-selected) .tag-container,
   .glass-card:not(.show-mobile-overlay):not(.is-selected) .card-expand-btn,
   .glass-card:not(.show-mobile-overlay):not(.is-selected) .card-favorite-btn {
@@ -1370,7 +1380,6 @@ body.lightbox-open .v-nav {
     pointer-events: none !important;
   }
 
-  /* 2. Force them to show cleanly only when JS toggles the class */
   .glass-card.show-mobile-overlay .tag-container,
   .glass-card.show-mobile-overlay .card-expand-btn,
   .glass-card.show-mobile-overlay .card-favorite-btn {
@@ -1378,12 +1387,10 @@ body.lightbox-open .v-nav {
     pointer-events: auto !important;
   }
 
-  /* 1. Hide delete button on mobile grid cards to prevent fat-fingering */
   .glass-card .tag-del {
     display: none !important;
   }
 
-  /* --- Mobile Lightbox UX --- */
   .lightbox-content {
     padding-top: 60px;
   }
@@ -1392,16 +1399,15 @@ body.lightbox-open .v-nav {
     max-height: 65vh;
   }
 
-  /* Horizontal Actions layout for mobile */
   .lightbox-actions {
     position: fixed;
     top: 16px;
     right: 16px;
     left: 16px;
-    gap: 8px; /* Slightly reduced gap to buy more space */
+    gap: 8px;
     flex-direction: row;
     justify-content: flex-end;
-    flex-wrap: wrap; /* Allows wrapping instead of pushing off screen */
+    flex-wrap: wrap;
     z-index: 10002;
   }
 
@@ -1410,39 +1416,45 @@ body.lightbox-open .v-nav {
     height: 40px;
   }
 
-  /* --- NEW: Hide Timeline Button during Edit Mode --- */
-  /* This makes exact room for the new Ignore button with zero layout shift */
   .lightbox-overlay.is-editing #lightboxContextBtn {
     display: none !important;
   }
 
-  /* Reveal the Red Xs ONLY when the Lightbox is in Edit Mode! */
   .lightbox-overlay.is-editing .lightbox-tags .tag-del {
-    display: inline-block !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
     opacity: 1 !important;
-    padding: 4px 8px;
-    margin-left: 8px;
+    width: 32px;
+    height: 32px;
+    margin-left: 12px;
+    margin-right: -4px;
     background: rgba(255, 69, 58, 0.15);
-    border-radius: 4px;
+    border-radius: 6px;
     color: #ff453a;
+    font-size: 1.2rem;
   }
 
-  /* --- NEW: Fullscreen Edit Mode for Mobile --- */
+  .lightbox-overlay.is-editing .lightbox-tags .tag {
+    padding: 8px 12px 8px 16px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+
   .lightbox-overlay.is-editing {
-    justify-content: flex-start; /* Pushes content to the top */
+    justify-content: flex-start;
     align-items: stretch;
-    padding-top: 80px; /* Clears the fixed buttons */
+    padding-top: 80px;
     padding-bottom: 40px;
-    overflow-y: auto; /* Enables scrolling for tags/description */
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Hide the media to reclaim all screen space */
   .lightbox-overlay.is-editing .lightbox-content {
     display: none !important;
   }
 
-  /* Expand the description wrapper to full width */
   .lightbox-overlay.is-editing .lightbox-desc-wrapper {
     width: 100%;
     max-width: 100%;
@@ -1455,12 +1467,10 @@ body.lightbox-open .v-nav {
     flex-shrink: 0;
   }
 
-  /* Give the text area plenty of typing space */
   .lightbox-overlay.is-editing .lightbox-desc-input {
     min-height: 120px;
   }
 
-  /* Bring the tags up and align them neatly under the description */
   .lightbox-overlay.is-editing .lightbox-tags {
     max-width: 100%;
     padding: 20px;
@@ -1471,4 +1481,587 @@ body.lightbox-open .v-nav {
   .toast-container {
     bottom: 100px;
   }
+
+  .modal-content {
+    width: 85% !important;
+    padding: 24px !important;
+  }
+}
+
+/* ==========================================================================
+     10. CUSTOM MODALS
+     ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  z-index: 100005;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-content {
+  background: rgba(15, 15, 15, 0.85);
+  border: 1px solid var(--glass-border);
+  padding: 32px;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  transform: translateY(20px) scale(0.95);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-overlay.is-active .modal-content {
+  transform: translateY(0) scale(1);
+}
+
+.modal-content h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.modal-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.modal-existing-boards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding-bottom: 4px;
+}
+
+.modal-existing-boards::-webkit-scrollbar {
+  width: 4px;
+}
+.modal-existing-boards::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+.modal-board-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  padding: 6px 12px;
+  border-radius: 100px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: capitalize;
+}
+
+.modal-board-chip:hover,
+.modal-board-chip.is-selected {
+  background: rgba(10, 132, 255, 0.15);
+  border-color: rgba(10, 132, 255, 0.4);
+  color: var(--text-primary);
+}
+
+.modal-input {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.modal-input:focus {
+  border-color: var(--select-color);
+  box-shadow: 0 0 15px rgba(10, 132, 255, 0.2);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.modal-btn {
+  padding: 10px 20px;
+  border-radius: 100px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.modal-btn.cancel-btn {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.modal-btn.cancel-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.modal-btn.save-btn {
+  background: var(--select-color);
+  color: white;
+  box-shadow: 0 4px 15px rgba(10, 132, 255, 0.3);
+}
+
+.modal-btn.save-btn:hover {
+  background: #0070e0;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
+}
+
+/* NEW: Danger Confirm Button */
+.modal-btn.danger-btn {
+  background: #ff453a;
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 69, 58, 0.3);
+}
+
+.modal-btn.danger-btn:hover {
+  background: #d73a31;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 69, 58, 0.4);
+}
+
+/* ==========================================================================
+     11. BOARDS HOMEPAGE
+     ========================================================================== */
+.boards-home-container {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 0 24px 60px 24px;
+  animation: fadeIn 0.4s ease;
+}
+
+.boards-header-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 40px; /* Breathes nicely away from the nav bar */
+  margin-bottom: 40px;
+  gap: 20px;
+}
+
+.boards-pill-title {
+  /* A beautiful, subtle blue-to-teal gradient splash */
+  background: linear-gradient(
+    135deg,
+    rgba(10, 132, 255, 0.15),
+    rgba(13, 148, 136, 0.15)
+  );
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(10, 132, 255, 0.3);
+
+  /* Soft colored glow */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(10, 132, 255, 0.15);
+
+  color: var(--text-primary);
+  padding: 10px 40px;
+  border-radius: 100px;
+
+  /* Modern, clean typography */
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: -0.01em; /* Slightly tight, modern kerning */
+  text-transform: none; /* Removes the all-caps */
+  margin: 0;
+}
+
+.board-sort-toggles {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 100px;
+  padding: 4px;
+}
+
+.sort-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-btn:hover {
+  color: var(--text-primary);
+}
+
+.sort-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.boards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.board-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--glass-border);
+  transition: all 0.3s ease;
+  background: rgba(20, 20, 20, 0.8);
+}
+
+.board-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), 0 0 0 2px var(--select-color);
+}
+
+.board-card-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.board-card:hover .board-card-bg {
+  transform: scale(1.05);
+}
+
+.board-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 40px 20px 20px 20px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.board-card-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: white;
+  text-transform: capitalize;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-card-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.board-card-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.board-card:hover .board-card-actions {
+  opacity: 1;
+}
+
+.board-action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.board-action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.board-action-btn.delete:hover {
+  background: rgba(255, 69, 58, 0.4);
+  color: #ff453a;
+  border-color: #ff453a;
+}
+
+/* --- Lightbox Quick Boards --- */
+.lightbox-quick-boards {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  gap: 8px;
+  z-index: 1010;
+  transition: opacity 0.3s ease;
+}
+
+.quick-board-btn {
+  /* Rich, dual-tone glass background */
+  background: linear-gradient(
+    135deg,
+    rgba(30, 30, 30, 0.75) 0%,
+    rgba(10, 10, 10, 0.85) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  /* Creates a 'light-catching' reflection on the top edge */
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 8px 16px 8px 12px;
+  border-radius: 30px; /* Fully rounded premium pill shape */
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  /* Smooth physics-based transition */
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Base icon styling */
+.quick-board-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(15, 15, 15, 0.4);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.quick-board-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.quick-board-btn svg {
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+}
+
+.quick-board-btn:hover svg {
+  color: var(--select-color); /* The plus sign turns blue on hover */
+}
+
+/* Seamlessly hide them when the user hides the UI */
+.lightbox-overlay.hide-ui .lightbox-quick-boards {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Active state when the media is already in the board */
+.quick-board-btn.is-active {
+  background: rgba(10, 132, 255, 0.15);
+  border-color: rgba(10, 132, 255, 0.3);
+  color: #fff;
+}
+
+.quick-board-btn.is-active svg {
+  color: var(--select-color);
+}
+
+@media (max-width: 768px) {
+  /* Center the top toolbar buttons */
+  .lightbox-actions {
+    left: 0;
+    right: 0;
+    width: 100%;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Center the Quick Boards */
+  .lightbox-quick-boards {
+    top: 80px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    z-index: 9999;
+  }
+}
+
+.modal-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 6px; /* FIX: Removed negative overlap */
+  margin-left: 4px;
+  display: block; /* FIX: Forces it to stack neatly above dropdowns */
+}
+
+/* FIX: Darker placeholder text for the e.g. hints */
+.modal-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* --- Tag Input Chips (Smart Board Modal) --- */
+.tag-input-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--glass-border);
+  padding: 6px 12px;
+  border-radius: 12px;
+  min-height: 44px;
+  align-items: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: text;
+}
+
+.tag-input-wrapper:focus-within {
+  border-color: var(--select-color);
+  box-shadow: 0 0 15px rgba(10, 132, 255, 0.2);
+}
+
+.tag-input-wrapper input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  flex: 1;
+  min-width: 100px;
+  padding: 4px 0;
+}
+
+.tag-input-wrapper input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.modal-tag-chip {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  animation: scaleIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-tag-chip .remove-chip {
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.modal-tag-chip .remove-chip:hover {
+  color: #ff453a;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* --- Empty Board Placeholder Gradient --- */
+.board-placeholder-gradient {
+  background: linear-gradient(
+    135deg,
+    rgba(76, 29, 149, 0.2) 0%,
+    rgba(5, 5, 5, 1) 50%,
+    rgba(13, 148, 136, 0.2) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Optional: Add a very faint etched icon look to the center of the gradient */
+.board-placeholder-gradient::after {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'/%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'/%3E%3Cpolyline points='21 15 16 10 5 21'/%3E%3C/svg%3E")
+    no-repeat center;
+  background-size: contain;
+  opacity: 0.5;
 }
