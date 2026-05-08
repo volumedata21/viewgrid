@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="icon" type="image/png" href="/static/favicon.png" />
@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
+    <datalist id="allKnownTagsList"></datalist>
+
     <nav class="v-nav">
       <img
         id="resetLogo"
@@ -24,12 +26,41 @@
       />
 
       <div class="nav-controls">
-        <div class="custom-select-wrapper" id="boardSelectWrapper">
+        <div class="custom-select-wrapper" id="folderSelectWrapper">
           <button
-            id="boardSelectTrigger"
+            id="folderSelectTrigger"
             class="icon-btn"
-            aria-label="Select Board"
-            title="All Boards"
+            aria-label="Select Folder"
+            title="All Folders"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-folders"
+            >
+              <path
+                d="M20 5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 1 1.2.6l.6.8a1.5 1.5 0 0 0 1.2.6z"
+              />
+              <path
+                d="M3 8.268a2 2 0 0 0-1 1.738V19a2 2 0 0 0 2 2h11a2 2 0 0 0 1.732-1"
+              />
+            </svg>
+          </button>
+          <div class="custom-select-options" id="folderSelectOptions"></div>
+        </div>
+
+        <div class="custom-select-wrapper" id="virtualBoardSelectWrapper">
+          <button
+            id="virtualBoardSelectTrigger"
+            class="icon-btn"
+            aria-label="My Boards"
+            title="My Boards"
           >
             <svg
               width="16"
@@ -46,7 +77,10 @@
               <polyline points="2 17 12 22 22 17"></polyline>
             </svg>
           </button>
-          <div class="custom-select-options" id="boardSelectOptions"></div>
+          <div
+            class="custom-select-options"
+            id="virtualBoardSelectOptions"
+          ></div>
         </div>
 
         <button
@@ -68,6 +102,28 @@
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </button>
+
+        <button
+          id="batchBoardBtn"
+          class="icon-btn"
+          aria-label="Add Selected to Board"
+          title="Add Selected to Board"
+          style="display: none"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+
         <button
           id="shuffleBtn"
           class="icon-btn"
@@ -161,18 +217,87 @@
       <div id="globalTagCloud" class="global-tag-cloud"></div>
     </div>
 
+    <main class="boards-home-container" id="boardsHome" style="display: none">
+      <div class="boards-header-top">
+        <div style="display: flex; gap: 12px; align-items: center">
+          <div class="board-sort-toggles">
+            <button class="sort-btn active" data-sort="modified">Recent</button>
+            <button class="sort-btn" data-sort="name">A-Z</button>
+            <button class="sort-btn" data-sort="count">Size</button>
+          </div>
+
+          <div
+            style="
+              width: 1px;
+              height: 24px;
+              background: var(--glass-border);
+              margin: 0 4px;
+            "
+          ></div>
+
+          <button
+            id="createRegularBoardBtn"
+            class="icon-btn"
+            aria-label="Create Board"
+            title="Create Empty Board"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+
+          <button
+            id="createSmartBoardBtn"
+            class="icon-btn"
+            aria-label="Create Smart Board"
+            title="Create Smart Board"
+            style="
+              background: rgba(10, 132, 255, 0.15);
+              border-color: rgba(10, 132, 255, 0.3);
+              color: var(--select-color);
+            "
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-layers-2"
+            >
+              <path
+                d="M13 13.74a2 2 0 0 1-2 0L2.5 8.87a1 1 0 0 1 0-1.74L11 2.26a2 2 0 0 1 2 0l8.5 4.87a1 1 0 0 1 0 1.74z"
+              />
+              <path
+                d="m20 14.285 1.5.845a1 1 0 0 1 0 1.74L13 21.74a2 2 0 0 1-2 0l-8.5-4.87a1 1 0 0 1 0-1.74l1.5-.845"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="boards-grid" id="boardsGrid"></div>
+    </main>
+
     <main class="masonry-grid" id="gallery"></main>
 
     <div id="autocompleteDropdown" class="autocomplete-glass"></div>
 
     <div id="lightbox" class="lightbox-overlay">
       <div class="lightbox-actions">
-        <button
-          id="lightboxClose"
-          class="icon-btn lightbox-btn"
-          aria-label="Close Fullscreen"
-          title="Close"
-        >
+        <button id="lightboxClose" class="icon-btn lightbox-btn">
           <svg
             width="24"
             height="24"
@@ -187,13 +312,21 @@
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-
-        <button
-          id="lightboxFavoriteBtn"
-          class="icon-btn lightbox-btn"
-          aria-label="Favorite"
-          title="Favorite"
-        >
+        <button id="lightboxBoardBtn" class="icon-btn lightbox-btn">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+        <button id="lightboxFavoriteBtn" class="icon-btn lightbox-btn">
           <svg
             width="20"
             height="20"
@@ -209,13 +342,7 @@
             ></path>
           </svg>
         </button>
-
-        <button
-          id="lightboxContextBtn"
-          class="icon-btn lightbox-btn"
-          aria-label="Show in Timeline"
-          title="Show in Timeline"
-        >
+        <button id="lightboxContextBtn" class="icon-btn lightbox-btn">
           <svg
             width="20"
             height="20"
@@ -230,12 +357,7 @@
             <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
         </button>
-        <button
-          id="lightboxEditDescBtn"
-          class="icon-btn lightbox-btn"
-          aria-label="Edit Description"
-          title="Edit Description"
-        >
+        <button id="lightboxEditDescBtn" class="icon-btn lightbox-btn">
           <svg
             width="18"
             height="18"
@@ -254,12 +376,9 @@
             ></path>
           </svg>
         </button>
-
         <button
           id="lightboxIgnoreBtn"
           class="icon-btn lightbox-btn btn-warning"
-          aria-label="Hide Directory"
-          title="Hide entire directory"
         >
           <svg
             width="18"
@@ -277,13 +396,7 @@
             <line x1="1" y1="1" x2="23" y2="23"></line>
           </svg>
         </button>
-
-        <button
-          id="lightboxDeleteBtn"
-          class="icon-btn lightbox-btn btn-danger"
-          aria-label="Delete File"
-          title="Delete"
-        >
+        <button id="lightboxDeleteBtn" class="icon-btn lightbox-btn btn-danger">
           <svg
             width="18"
             height="18"
@@ -304,6 +417,7 @@
         </button>
       </div>
 
+      <div class="lightbox-quick-boards" id="lightboxQuickBoards"></div>
       <div class="lightbox-content" id="lightboxContent"></div>
 
       <div
@@ -322,6 +436,239 @@
       <div class="lightbox-tags" id="lightboxTags"></div>
     </div>
 
-    <script src="/static/script.js"></script>
+    <div id="boardModalOverlay" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Add to Board</h3>
+        <p>Create a new board or select an existing one.</p>
+
+        <div id="modalExistingBoards" class="modal-existing-boards"></div>
+
+        <input
+          type="text"
+          id="boardModalInput"
+          class="modal-input"
+          placeholder="Type new board name..."
+          autocomplete="off"
+        />
+
+        <div class="modal-actions">
+          <button id="boardModalCancel" class="modal-btn cancel-btn">
+            Cancel
+          </button>
+          <button id="boardModalSave" class="modal-btn save-btn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="smartBoardModalOverlay" class="modal-overlay">
+      <div class="modal-content" style="max-width: 500px; overflow: visible">
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            color: var(--select-color);
+          "
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="lucide lucide-layers-2"
+          >
+            <path
+              d="M13 13.74a2 2 0 0 1-2 0L2.5 8.87a1 1 0 0 1 0-1.74L11 2.26a2 2 0 0 1 2 0l8.5 4.87a1 1 0 0 1 0 1.74z"
+            />
+            <path
+              d="m20 14.285 1.5.845a1 1 0 0 1 0 1.74L13 21.74a2 2 0 0 1-2 0l-8.5-4.87a1 1 0 0 1 0-1.74l1.5-.845"
+            />
+          </svg>
+          <h3 id="smartBoardModalTitle" style="margin: 0; font-size: 1.3rem">
+            Smart Board
+          </h3>
+        </div>
+        <p style="margin-bottom: 12px">
+          Auto-populate a board based on dynamic rules.
+        </p>
+
+        <label class="modal-label">Board Name</label>
+        <input
+          type="text"
+          id="smartBoardNameInput"
+          class="modal-input"
+          placeholder="e.g., Summer Trip"
+          autocomplete="off"
+        />
+
+        <label class="modal-label" style="margin-top: 8px"
+          >Must Include Tags</label
+        >
+        <div id="sbIncludeTagsContainer" class="tag-input-wrapper">
+          <input
+            type="text"
+            id="sbIncludeTagsInput"
+            list="allKnownTagsList"
+            placeholder="Type and press Enter..."
+            autocomplete="off"
+          />
+        </div>
+
+        <label class="modal-label" style="margin-top: 8px"
+          >Must Exclude Tags</label
+        >
+        <div id="sbExcludeTagsContainer" class="tag-input-wrapper">
+          <input
+            type="text"
+            id="sbExcludeTagsInput"
+            list="allKnownTagsList"
+            placeholder="Type and press Enter..."
+            autocomplete="off"
+          />
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 8px">
+          <div style="flex: 1; display: flex; flex-direction: column">
+            <label class="modal-label">Media Type</label>
+            <div
+              class="custom-select-wrapper"
+              id="sbMediaSelectWrapper"
+              style="width: 100%"
+            >
+              <div
+                class="modal-input"
+                id="sbMediaSelectBtn"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  cursor: pointer;
+                "
+              >
+                <span id="sbMediaSelectLabel">All Media</span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div
+                class="custom-select-options"
+                id="sbMediaSelectOptions"
+                style="width: 100%"
+              >
+                <div class="tree-item">
+                  <div class="tree-header" data-value="all">All Media</div>
+                </div>
+                <div class="tree-item">
+                  <div class="tree-header" data-value="image">Images Only</div>
+                </div>
+                <div class="tree-item">
+                  <div class="tree-header" data-value="video">Videos Only</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column">
+            <label class="modal-label">Target Folder</label>
+            <div
+              class="custom-select-wrapper"
+              id="sbFolderSelectWrapper"
+              style="width: 100%"
+            >
+              <div
+                class="modal-input"
+                id="sbFolderSelectBtn"
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  cursor: pointer;
+                "
+              >
+                <span
+                  id="sbFolderSelectLabel"
+                  style="
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    max-width: 85%;
+                  "
+                  >All</span
+                >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div
+                class="custom-select-options"
+                id="sbFolderSelectOptions"
+                style="width: 100%; max-height: 200px; overflow-y: auto"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 16px">
+          <button id="smartBoardCancel" class="modal-btn cancel-btn">
+            Cancel
+          </button>
+          <button id="smartBoardSave" class="modal-btn save-btn">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="renameModalOverlay" class="modal-overlay">
+      <div class="modal-content">
+        <h3 id="renameModalTitle">Rename Board</h3>
+        <p id="renameModalDesc">Enter a new name for this board.</p>
+        <input
+          type="text"
+          id="renameModalInput"
+          class="modal-input"
+          autocomplete="off"
+        />
+        <div class="modal-actions">
+          <button id="renameModalCancel" class="modal-btn cancel-btn">
+            Cancel
+          </button>
+          <button id="renameModalSave" class="modal-btn save-btn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="deleteModalOverlay" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Delete Board</h3>
+        <p id="deleteModalDesc">Are you sure?</p>
+        <div class="modal-actions">
+          <button id="deleteModalCancel" class="modal-btn cancel-btn">
+            Cancel
+          </button>
+          <button id="deleteModalConfirm" class="modal-btn danger-btn">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/static/app.js"></script>
   </body>
 </html>
