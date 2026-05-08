@@ -7,23 +7,23 @@ import shutil
 import mimetypes
 import subprocess
 import argparse
+from email.utils import formatdate
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, quote
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MEDIA_FOLDER = os.path.join(BASE_DIR, 'media')
 
 DATA_FOLDER = os.path.join(BASE_DIR, 'data')
 DB_FILE = os.path.join(DATA_FOLDER, 'tags.db')
+SMART_BOARDS_FILE = os.path.join(DATA_FOLDER, 'smart_boards.json') # <-- NEW
 IS_READONLY = False
 
-# Note: .json is deliberately NOT here so sidecars aren't treated as images
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.webm', '.mp4', '.mov'}
 
 os.makedirs(MEDIA_FOLDER, exist_ok=True)
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
-# --- NEW: Helper function to read the ignore file ---
 def get_ignored_folders():
     ignored = {'@eaDir', '#recycle'}
     ignore_file_path = os.path.join(BASE_DIR, '.talloignore')
@@ -38,7 +38,6 @@ def get_ignored_folders():
             pass
     return ignored
 
-# --- UPDATED: Scanner now skips ignored folders completely ---
 def get_all_media_files():
     valid_files = set()
     ignored_paths = get_ignored_folders()
@@ -49,7 +48,6 @@ def get_all_media_files():
             current_rel_root = ''
         current_rel_root = current_rel_root.replace('\\', '/')
         
-        # Prune ignored directories so os.walk skips them entirely
         valid_dirs = []
         for d in dirs:
             if d.startswith('.') or d in ['@eaDir', '#recycle']: 
@@ -61,9 +59,26 @@ def get_all_media_files():
             
         dirs[:] = valid_dirs
         
+        lower_files = {f.lower() for f in files}
+        
         for f in files:
             if f.startswith('.'): continue
-            if f.lower().endswith(tuple(ALLOWED_EXTENSIONS)):
+            lower_f = f.lower()
+            if lower_f.endswith(tuple(ALLOWED_EXTENSIONS)):
+                
+                # --- Hides exact matches AND Pinchflat '-thumb' sidecars ---
+                if lower_f.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                    base_name = os.path.splitext(lower_f)[0]
+                    
+                    has_video = any(base_name + ext in lower_files for ext in ['.mp4', '.webm', '.mov'])
+                    
+                    if not has_video and base_name.endswith('-thumb'):
+                        orig_base = base_name[:-6]
+                        has_video = any(orig_base + ext in lower_files for ext in ['.mp4', '.webm', '.mov'])
+                        
+                    if has_video:
+                        continue
+                        
                 rel_path = f"{current_rel_root}/{f}" if current_rel_root else f
                 valid_files.add(rel_path)
     return valid_files
@@ -85,6 +100,15 @@ def init_db():
             
         conn.commit()
 
+# --- NEW: Initialize Smart Boards File ---
+def init_smart_boards():
+    if not os.path.exists(SMART_BOARDS_FILE):
+        try:
+            with open(SMART_BOARDS_FILE, 'w', encoding='utf-8') as f:
+                json.dump([], f)
+        except Exception as e:
+            print(f"Error initializing smart boards: {e}")
+
 def cleanup_orphaned_tags():
     try:
         valid_files = get_all_media_files()
@@ -103,19 +127,23 @@ def cleanup_orphaned_tags():
         print(f"Cleanup error: {e}")
 
 def read_sidecar_data(filepath):
+    # Only reads strict Tallo native sidecars (e.g. video.mp4.json)
     sidecar_path = filepath + '.json'
     if os.path.exists(sidecar_path):
         try:
             with open(sidecar_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                tags = ",".join(data.get("tags", []))
+                tags = ",".join(data.get("tags", [])) if data.get("tags") else ""
                 description = data.get("description", "")
                 return tags, description
         except Exception as e:
             print(f"Error reading sidecar {sidecar_path}: {e}")
+            
     return None, ""
 
 def read_macos_tags(filepath):
+    if sys.platform != 'darwin':
+        return ""
     try:
         result = subprocess.run(['mdls', '-raw', '-name', 'kMDItemFinderComment', filepath], capture_output=True, text=True)
         if result.returncode == 0 and result.stdout.strip() != '(null)':
@@ -137,11 +165,12 @@ def sync_files_metadata():
                 tags_to_save = ""
                 desc_to_save = ""
                 
-                if os.path.exists(sidecar_path):
-                    sidecar_tags, sidecar_desc = read_sidecar_data(filepath)
-                    if sidecar_tags is not None:
-                        tags_to_save = sidecar_tags
-                        desc_to_save = sidecar_desc
+                # Check for Tallo sidecar
+                sidecar_tags, sidecar_desc = read_sidecar_data(filepath)
+                
+                if sidecar_tags is not None:
+                    tags_to_save = sidecar_tags
+                    desc_to_save = sidecar_desc
                 else:
                     macos_tags = read_macos_tags(filepath)
                     if macos_tags:
@@ -152,15 +181,16 @@ def sync_files_metadata():
                         if row:
                             tags_to_save = row[0] if row[0] else ""
                             desc_to_save = row[1] if row[1] else ""
-                    
-                    if tags_to_save or desc_to_save:
-                        tag_list = [t.strip() for t in tags_to_save.split(',') if t.strip()]
-                        try:
-                            with open(sidecar_path, 'w', encoding='utf-8') as f:
-                                json.dump({"tags": tag_list, "description": desc_to_save}, f, indent=4)
-                            migrated_count += 1
-                        except Exception as e:
-                            print(f"Error migrating sidecar for {rel_path}: {e}")
+                
+                # If there are tags/descriptions in the DB but no lightweight JSON file exists, create one!
+                if (tags_to_save or desc_to_save) and not os.path.exists(sidecar_path):
+                    tag_list = [t.strip() for t in tags_to_save.split(',') if t.strip()]
+                    try:
+                        with open(sidecar_path, 'w', encoding='utf-8') as f:
+                            json.dump({"tags": tag_list, "description": desc_to_save}, f, indent=4)
+                        migrated_count += 1
+                    except Exception as e:
+                        print(f"Error migrating sidecar for {rel_path}: {e}")
                 
                 cursor.execute('''
                     INSERT INTO image_tags (filename, tags, description) 
@@ -178,6 +208,7 @@ def sync_files_metadata():
         print(f"Metadata Sync error: {e}")
 
 init_db()
+init_smart_boards() # <-- NEW
 cleanup_orphaned_tags()
 sync_files_metadata()
 
@@ -197,15 +228,29 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             return
 
+        # --- NEW: Serve Smart Boards Data ---
+        elif parsed_path.path == '/api/smart_boards':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            self.end_headers()
+            try:
+                if os.path.exists(SMART_BOARDS_FILE):
+                    with open(SMART_BOARDS_FILE, 'r', encoding='utf-8') as f:
+                        self.wfile.write(f.read().encode('utf-8'))
+                else:
+                    self.wfile.write(b'[]')
+            except Exception as e:
+                print(f"Error reading smart boards: {e}")
+                self.wfile.write(b'[]')
+            return
+
         elif parsed_path.path == '/api/gallery':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
-            
-            # --- Anti-cache headers are here! ---
             self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             self.send_header('Pragma', 'no-cache')
             self.send_header('Expires', '0')
-            
             self.end_headers()
 
             gallery_data = []
@@ -215,14 +260,10 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 
                 for rel_path in valid_files:
                     filepath = os.path.join(MEDIA_FOLDER, rel_path)
-                    
-                    # --- UPDATED: Sort by "Date Added" instead of "Date Modified" ---
                     stat = os.stat(filepath)
                     try:
-                        # Mac: The exact moment it was copied/born into the Tallo folder
                         sort_time = stat.st_birthtime
                     except AttributeError:
-                        # Windows/Linux: The moment the file was added/changed
                         sort_time = stat.st_ctime
                         
                     files_with_time.append((rel_path, sort_time))
@@ -231,8 +272,6 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 
                 with sqlite3.connect(DB_FILE) as conn:
                     cursor = conn.cursor()
-                    
-                    # --- The Dictionary Optimization is here! ---
                     cursor.execute('SELECT filename, tags, description FROM image_tags')
                     db_lookup = {row[0]: (row[1], row[2]) for row in cursor.fetchall()}
                     
@@ -250,13 +289,37 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                         if not board_name:
                             board_name = "Main" 
                             
-                        gallery_data.append({
+                        # --- Safe URL Encoding for spaces and special characters ---
+                        img_data = {
                             'filename': clean_rel_path,
-                            'url': f'/media/{clean_rel_path}',
+                            'url': f"/media/{quote(clean_rel_path, safe='/')}",
                             'board': board_name,
                             'tags': [t.strip() for t in tags if t.strip()],
                             'description': description
-                        })
+                        }
+                        
+                        if clean_rel_path.lower().endswith(('.mp4', '.webm', '.mov')):
+                            base_rel_path_os = os.path.splitext(rel_path)[0]
+                            base_abs_path = os.path.join(MEDIA_FOLDER, base_rel_path_os)
+                            base_rel_path_web = os.path.splitext(clean_rel_path)[0]
+                            
+                            # Safely URL Encode the posters (Handles standard and -thumb)
+                            for ext in ['.webp', '.jpg', '.png', '.jpeg', '.WEBP', '.JPG', '.PNG', '.JPEG']:
+                                if os.path.exists(base_abs_path + '-thumb' + ext):
+                                    img_data['poster'] = f"/media/{quote(base_rel_path_web + '-thumb' + ext, safe='/')}"
+                                    break
+                                elif os.path.exists(base_abs_path + ext):
+                                    img_data['poster'] = f"/media/{quote(base_rel_path_web + ext, safe='/')}"
+                                    break
+                            
+                            # Safely URL Encode the subtitles (Handles language suffixes)
+                            for vtt_suffix in ['.vtt', '.en.vtt', '.eng.vtt']:
+                                if os.path.exists(base_abs_path + vtt_suffix):
+                                    img_data['subtitle'] = f"/media/{quote(base_rel_path_web + vtt_suffix, safe='/')}"
+                                    break
+                            
+                        gallery_data.append(img_data)
+                        
             except Exception as e:
                 print(f"Error reading media/db: {e}")
 
@@ -270,6 +333,16 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             if not os.path.exists(filepath):
                 self.send_error(404, "File not found")
                 return
+
+            # --- SMART CACHE CHECK ---
+            file_stat = os.stat(filepath)
+            last_modified = formatdate(file_stat.st_mtime, usegmt=True)
+            
+            if self.headers.get('If-Modified-Since') == last_modified:
+                self.send_response(304)
+                self.end_headers()
+                return
+            # -------------------------
                 
             content_type, _ = mimetypes.guess_type(filepath)
             if not content_type:
@@ -294,12 +367,14 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                         self.send_header('Accept-Ranges', 'bytes')
                         self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
                         self.send_header('Content-Length', str(length))
+                        self.send_header('Last-Modified', last_modified)
+                        self.send_header('Cache-Control', 'public, max-age=0, must-revalidate')
                         self.end_headers()
                         
                         f.seek(start)
                         bytes_to_send = length
                         while bytes_to_send > 0:
-                            chunk = f.read(min(8192, bytes_to_send))
+                            chunk = f.read(min(65536, bytes_to_send))
                             if not chunk: break
                             try:
                                 self.wfile.write(chunk)
@@ -313,6 +388,8 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 self.send_header('Content-Type', content_type)
                 self.send_header('Content-Length', str(file_size))
                 self.send_header('Accept-Ranges', 'bytes')
+                self.send_header('Last-Modified', last_modified)
+                self.send_header('Cache-Control', 'public, max-age=0, must-revalidate')
                 self.end_headers()
                 try:
                     shutil.copyfileobj(f, self.wfile)
@@ -341,14 +418,47 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             
         parsed_path = urlparse(self.path)
 
+        # --- NEW: Save Smart Boards ---
+        if parsed_path.path == '/api/smart_boards':
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                self.send_error(400, "Empty request")
+                return
+
+            post_data = self.rfile.read(content_length)
+            smart_boards_data = json.loads(post_data)
+
+            try:
+                with open(SMART_BOARDS_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(smart_boards_data, f, indent=4)
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'status': 'success'}).encode('utf-8'))
+            except Exception as e:
+                print(f"Error saving smart boards: {e}")
+                self.send_error(500, "Failed to save smart boards")
+            return
+
         if parsed_path.path == '/api/upload':
             encoded_filename = self.headers.get('X-File-Name')
+            encoded_board = self.headers.get('X-Board-Name')
+            
             if not encoded_filename:
                 self.send_error(400, "Missing filename")
                 return
                 
             filename = unquote(encoded_filename)
             filename = os.path.basename(filename) 
+            
+            target_dir = MEDIA_FOLDER
+            if encoded_board:
+                board_name = unquote(encoded_board)
+                if board_name and board_name not in ["All", "Main"]:
+                    safe_board = os.path.normpath(board_name)
+                    if not safe_board.startswith('..') and not safe_board.startswith('/'):
+                        target_dir = os.path.join(MEDIA_FOLDER, safe_board)
+                        os.makedirs(target_dir, exist_ok=True)
             
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length == 0:
@@ -357,7 +467,7 @@ class GalleryHandler(SimpleHTTPRequestHandler):
 
             file_data = self.rfile.read(content_length)
 
-            filepath = os.path.join(MEDIA_FOLDER, filename)
+            filepath = os.path.join(target_dir, filename)
             with open(filepath, 'wb') as f:
                 f.write(file_data)
 
@@ -399,15 +509,19 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 except Exception as e:
                     print(f"Error saving sidecar for {filename}: {e}")
 
-                safe_filepath = filepath.replace('"', '\\"')
-                safe_tags = tags.replace('"', '\\"')
-                applescript = f'''
-                tell application "Finder"
-                    set theFile to POSIX file "{safe_filepath}" as alias
-                    set comment of theFile to "{safe_tags}"
-                end tell
-                '''
-                subprocess.Popen(['osascript', '-e', applescript], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if sys.platform == 'darwin':
+                    safe_filepath = filepath.replace('"', '\\"')
+                    safe_tags = tags.replace('"', '\\"')
+                    applescript = f'''
+                    tell application "Finder"
+                        set theFile to POSIX file "{safe_filepath}" as alias
+                        set comment of theFile to "{safe_tags}"
+                    end tell
+                    '''
+                    try:
+                        subprocess.Popen(['osascript', '-e', applescript], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    except Exception:
+                        pass
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -415,7 +529,6 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({'status': 'success'}).encode('utf-8'))
             return
 
-        # --- NEW: The /api/ignore POST endpoint is here! ---
         if parsed_path.path == '/api/ignore':
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length == 0:
@@ -429,7 +542,6 @@ class GalleryHandler(SimpleHTTPRequestHandler):
             if board and board != "Main":
                 ignore_file_path = os.path.join(BASE_DIR, '.talloignore')
                 try:
-                    # Force-create it if it doesn't exist to avoid OS permission errors
                     if not os.path.exists(ignore_file_path):
                         with open(ignore_file_path, 'w', encoding='utf-8') as f:
                             f.write(f"{board}\n")
@@ -472,13 +584,11 @@ class GalleryHandler(SimpleHTTPRequestHandler):
                 self.send_error(400, "Missing filename")
                 return
 
-            # 1. Remove from SQLite Database
             with sqlite3.connect(DB_FILE) as conn:
                 cursor = conn.cursor()
                 cursor.execute('DELETE FROM image_tags WHERE filename = ?', (filename,))
                 conn.commit()
 
-            # 2. Delete the physical image and sidecar
             filepath = os.path.join(MEDIA_FOLDER, filename)
             sidecar_path = filepath + '.json'
 
@@ -516,6 +626,7 @@ def run(host='127.0.0.1', port=7000, readonly=False):
     mimetypes.add_type('image/webp', '.webp')
     mimetypes.add_type('video/webm', '.webm')
     mimetypes.add_type('video/mp4', '.mp4')
+    mimetypes.add_type('text/vtt', '.vtt')
 
     server_address = (host, port)
     httpd = ThreadingHTTPServer(server_address, GalleryHandler)
